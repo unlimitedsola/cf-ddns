@@ -1,4 +1,4 @@
-//! Partial implementation, only contains field that we'll use
+//! Partial implementation, only contains fields that we'll use
 use crate::cloudflare::ApiRequest;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
