@@ -3,6 +3,7 @@ name = "cf-ddns"
 version = "0.1.0"
 edition = "2021"
 
+license = "MIT"
 authors = ["Sola <dev@sola.love>"]
 description = "DDNS updater for Cloudflare"
 
