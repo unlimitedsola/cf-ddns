@@ -27,7 +27,7 @@ pub enum LookupConfig {
 impl Config {
     pub fn load() -> Result<Config> {
         let file = File::open(Self::config_path()?)?;
-        Ok(serde_json::from_reader(file)?)
+        Ok(serde_yaml::from_reader(file)?)
     }
 
     fn config_path() -> Result<PathBuf> {
