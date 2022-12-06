@@ -18,7 +18,7 @@ impl LookupProvider for ICanHazIp {
     }
 }
 
-async fn lookup<T: FromStr<Err = AddrParseError>>(url: &str) -> Result<T> {
+async fn lookup<T: FromStr<Err=AddrParseError>>(url: &str) -> Result<T> {
     let body = reqwest::get(url).await?.text().await?;
     Ok(body
         .trim() // ends with \n
@@ -35,6 +35,7 @@ mod tests {
         let r = ICanHazIp.lookup_v4().await.unwrap();
         println!("{r:?}")
     }
+
     #[tokio::test]
     async fn v6_test() {
         let r = ICanHazIp.lookup_v6().await.unwrap();

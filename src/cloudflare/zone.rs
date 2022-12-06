@@ -1,7 +1,9 @@
 //! Partial implementation, only contains fields that we'll use
-use crate::cloudflare::ApiRequest;
+
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
+
+use crate::cloudflare::ApiRequest;
 
 #[derive(Deserialize, Debug)]
 pub struct Zone {

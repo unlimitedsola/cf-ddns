@@ -5,8 +5,8 @@ use anyhow::Result;
 use futures::future::{join, join_all};
 use log::{error, info};
 
+use crate::AppContext;
 use crate::config::ZoneRecord;
-use crate::context::AppContext;
 use crate::lookup::LookupProvider;
 
 impl AppContext {
@@ -20,7 +20,7 @@ impl AppContext {
             self.clone().update_v4(&records),
             self.clone().update_v6(&records),
         )
-        .await;
+            .await;
         Ok(())
     }
 
