@@ -4,12 +4,12 @@ use std::fs::File;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
-use crate::cloudflare::dns::DnsContent::{A, AAAA};
 use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::AppContext;
+use crate::cloudflare::dns::DnsContent::{A, AAAA};
 use crate::cloudflare::dns::DnsRecord;
-use crate::context::AppContext;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IdCache {

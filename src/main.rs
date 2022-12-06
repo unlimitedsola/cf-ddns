@@ -1,20 +1,43 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use env_logger::Env;
 
+use crate::cache::IdCache;
+use crate::cloudflare::Client;
 use crate::cmd::Cli;
 use crate::cmd::Commands::Update;
 use crate::config::Config;
-use crate::context::AppContext;
+use crate::lookup::Provider;
 
 mod cache;
 mod cloudflare;
 mod cmd;
 mod config;
-mod context;
+mod install;
 mod lookup;
+
+pub struct AppContext {
+    pub lookup: Provider,
+    pub client: Client,
+    pub id_cache: Arc<Mutex<IdCache>>,
+    pub config: Config,
+}
+
+impl AppContext {
+    pub fn new(config: Config) -> Result<Self> {
+        let lookup = Provider::new(&config);
+        let client = Client::new(&config.token)?;
+        let id_cache = Arc::new(Mutex::new(IdCache::load().unwrap_or_default()));
+        Ok(AppContext {
+            lookup,
+            client,
+            id_cache,
+            config,
+        })
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -30,7 +53,7 @@ async fn main() -> Result<()> {
             Update { ns } => ctx.clone().update(ns),
         },
     }
-    .await?;
+        .await?;
 
     ctx.id_cache.lock().unwrap().save()?;
     Ok(())
