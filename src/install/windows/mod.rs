@@ -1,0 +1,3 @@
+#![cfg(windows)]
+
+fn install() {}
