@@ -25,6 +25,6 @@ impl ScHandle {
 
 impl Drop for ScHandle {
     fn drop(&mut self) {
-        unsafe { Services::CloseServiceHandle(self.0) };
+        unsafe { Services::CloseServiceHandle(self.0).ok().unwrap() };
     }
 }
