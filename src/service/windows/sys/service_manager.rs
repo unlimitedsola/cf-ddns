@@ -3,9 +3,9 @@ use windows::core::PCWSTR;
 use windows::Win32::System::Services;
 use windows::Win32::System::Services::SERVICES_ACTIVE_DATABASEW;
 
-use crate::install::windows::service::ScHandle;
-use crate::install::windows::service::Service;
-use crate::install::windows::service::ServiceConfig;
+use crate::service::windows::sys::ScHandle;
+use crate::service::windows::sys::Service;
+use crate::service::windows::sys::ServiceConfig;
 
 /// Service Control Manager for registering and querying services
 pub struct ServiceManager {

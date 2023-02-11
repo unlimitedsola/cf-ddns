@@ -15,7 +15,7 @@ mod cache;
 mod cloudflare;
 mod cmd;
 mod config;
-mod install;
+mod service;
 mod lookup;
 
 pub struct AppContext {
