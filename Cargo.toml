@@ -13,7 +13,7 @@ description = "DDNS updater for Cloudflare"
 anyhow = "1.0.66"
 async-trait = "0.1.58"
 clap = { version = "4.0.25", features = ["derive"] }
-env_logger = "0.9.3"
+env_logger = "0.10.0"
 futures = "0.3.25"
 log = "0.4.17"
 reqwest = { version = "0.11.12", features = ["json"] }
@@ -26,9 +26,12 @@ tokio = { version = "1.21.2", features = ["full"] }
 [target.'cfg(windows)'.dependencies]
 
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.43.0"
+version = "0.44.0"
 features = [
     "Win32_Foundation",
+    "Win32_System_Kernel",
+    "Win32_System_Threading",
+    "Win32_System_WindowsProgramming",
     "Win32_System_Services",
     "Win32_Security"
 ]

@@ -3,6 +3,7 @@
 use windows::core::PCWSTR;
 use windows::w;
 
+mod entry;
 mod sys;
 
 const SERVICE_NAME: PCWSTR = w!("cf-ddns");

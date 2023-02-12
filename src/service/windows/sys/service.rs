@@ -14,6 +14,7 @@ impl Service {
     }
 
     pub fn delete(self) -> Result<()> {
-        Ok(unsafe { Services::DeleteService(self.handle.raw_handle()) }.ok()?)
+        unsafe { Services::DeleteService(self.handle.raw_handle()).ok()? };
+        Ok(())
     }
 }

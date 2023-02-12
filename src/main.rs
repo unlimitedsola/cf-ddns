@@ -7,7 +7,7 @@ use env_logger::Env;
 use crate::cache::IdCache;
 use crate::cloudflare::Client;
 use crate::cmd::Cli;
-use crate::cmd::Commands::Update;
+use crate::cmd::Commands::{Service, Update};
 use crate::config::Config;
 use crate::lookup::Provider;
 
@@ -15,8 +15,9 @@ mod cache;
 mod cloudflare;
 mod cmd;
 mod config;
-mod service;
 mod lookup;
+mod service;
+mod updater;
 
 pub struct AppContext {
     pub lookup: Provider,
@@ -48,12 +49,14 @@ async fn main() -> Result<()> {
     let cli: Cli = Cli::parse();
 
     match cli.command {
-        None => ctx.clone().update(None),
+        None => ctx.clone().update(None).await?,
         Some(cmd) => match cmd {
-            Update { ns } => ctx.clone().update(ns),
+            Update { ns } => ctx.clone().update(ns).await?,
+            Service { command } => match command {
+                _ => {}
+            },
         },
-    }
-        .await?;
+    };
 
     ctx.id_cache.lock().unwrap().save()?;
     Ok(())
