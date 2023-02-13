@@ -20,6 +20,8 @@ use Threading::NtQueryInformationProcess;
 pub fn is_in_windows_service() -> Result<bool> {
     let is_in_service = unsafe {
         let cur_process = current_process_info()?;
+        // Reserved3 is actually InheritedFromUniqueProcessId as per the MS documentation
+        // https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryinformationprocess
         let parent_process = find_system_process(cur_process.Reserved3 as u32)?;
 
         parent_process.session_id == 0
@@ -53,7 +55,7 @@ unsafe fn find_system_process(pid: u32) -> Result<SystemProcessInfo> {
     loop {
         let layout = Layout::array::<u8>(buf_size)?;
         // SAFETY: Deallocate before returning errors
-        let mut buf = alloc(layout);
+        let buf = alloc(layout);
         if buf.is_null() {
             handle_alloc_error(layout);
         }
