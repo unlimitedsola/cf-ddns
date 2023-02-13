@@ -124,4 +124,13 @@ mod tests {
     fn test_should_not_in_windows_service() {
         assert!(!is_in_windows_service().unwrap())
     }
+
+    #[test]
+    #[ignore]
+    fn mem_leak_test() {
+        // maybe? dunno how to test memory leaks :P
+        for _ in 0..1_000_000 {
+            assert!(!is_in_windows_service().unwrap())
+        }
+    }
 }
