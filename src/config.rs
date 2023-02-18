@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::env::current_exe;
+use std::fmt::Debug;
 use std::fs::File;
 use std::iter::repeat;
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,12 +26,14 @@ pub enum LookupConfig {
 }
 
 impl Config {
-    pub fn load() -> Result<Config> {
-        let file = File::open(Self::config_path()?)?;
+    pub fn load(path: Option<&PathBuf>) -> Result<Config> {
+        let default_path = Self::default_path()?;
+        let path = path.unwrap_or(&default_path);
+        let file = File::open(path)?;
         Ok(serde_yaml::from_reader(file)?)
     }
 
-    fn config_path() -> Result<PathBuf> {
+    fn default_path() -> Result<PathBuf> {
         Ok(current_exe()?.with_file_name("config.json"))
     }
 }

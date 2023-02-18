@@ -7,13 +7,15 @@ use std::path::PathBuf;
 use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::AppContext;
 use crate::cloudflare::dns::DnsContent::{A, AAAA};
 use crate::cloudflare::dns::DnsRecord;
+use crate::AppContext;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IdCache {
+    /// Zone name to Zone Id
     zones: HashMap<String, String>,
+    /// Record name to Record Ids (v4, v6)
     records: HashMap<String, RecordIdCache>,
 }
 
@@ -62,15 +64,15 @@ impl RecordIdCache {
 
 impl IdCache {
     pub fn load() -> Result<IdCache> {
-        let file = File::open(Self::cache_path()?)?;
+        let file = File::open(Self::default_path()?)?;
         Ok(serde_json::from_reader(file)?)
     }
     pub fn save(&self) -> Result<()> {
-        let file = File::create(Self::cache_path()?)?;
+        let file = File::create(Self::default_path()?)?;
         Ok(serde_json::to_writer(file, self)?)
     }
 
-    fn cache_path() -> Result<PathBuf> {
+    fn default_path() -> Result<PathBuf> {
         Ok(current_exe()?.with_file_name("id_cache.json"))
     }
 }

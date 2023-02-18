@@ -5,21 +5,21 @@ use clap::Parser;
 use env_logger::Env;
 
 use crate::cache::IdCache;
+use crate::cli::Cli;
 use crate::cloudflare::Client;
-use crate::cmd::Cli;
-use crate::cmd::Commands::{Service, Update};
 use crate::config::Config;
 use crate::lookup::Provider;
 
 mod cache;
+mod cli;
 mod cloudflare;
-mod cmd;
 mod config;
 mod lookup;
 mod service;
 mod updater;
 
 pub struct AppContext {
+    pub cli: Cli,
     pub lookup: Provider,
     pub client: Client,
     pub id_cache: Arc<Mutex<IdCache>>,
@@ -27,11 +27,13 @@ pub struct AppContext {
 }
 
 impl AppContext {
-    pub fn new(config: Config) -> Result<Self> {
+    pub fn new(cli: Cli) -> Result<Self> {
+        let config = Config::load(cli.config.as_ref()).with_context(|| "Unable to load config.")?;
         let lookup = Provider::new(&config);
         let client = Client::new(&config.token)?;
         let id_cache = Arc::new(Mutex::new(IdCache::load().unwrap_or_default()));
         Ok(AppContext {
+            cli,
             lookup,
             client,
             id_cache,
@@ -42,22 +44,15 @@ impl AppContext {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    #[cfg(windows)]
+    if service::is_in_windows_service()? {
+        return service::service_entry();
+    }
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-    let config = Config::load().with_context(|| "Unable to load config.")?;
-    let ctx = Arc::new(AppContext::new(config)?);
 
     let cli: Cli = Cli::parse();
-
-    match cli.command {
-        None => ctx.clone().update(None).await?,
-        Some(cmd) => match cmd {
-            Update { ns } => ctx.clone().update(ns).await?,
-            Service { command } => match command {
-                _ => {}
-            },
-        },
-    };
-
-    ctx.id_cache.lock().unwrap().save()?;
+    let app = AppContext::new(cli)?;
+    app.run().await?;
+    app.id_cache.lock().unwrap().save()?;
     Ok(())
 }

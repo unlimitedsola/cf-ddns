@@ -1,5 +1,5 @@
-use anyhow::Result;
-use windows::core::PCWSTR;
+use anyhow::{Context, Result};
+use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::System::Services;
 use windows::Win32::System::Services::SERVICES_ACTIVE_DATABASEW;
 
@@ -32,18 +32,18 @@ impl ServiceManager {
         let handle = unsafe {
             let handle = Services::CreateServiceW(
                 self.handle.raw_handle(),
-                config.name,
-                config.display_name,
+                &HSTRING::from(config.name),
+                &HSTRING::from(config.display_name),
                 access_flag,
                 config.service_type,
                 config.start_type,
                 config.error_control,
-                config.binary_path_name,
+                &HSTRING::from(config.command),
                 PCWSTR::null(),
                 None,
-                config.dependencies,
-                config.service_start_name,
-                config.password,
+                PCWSTR::null(),
+                PCWSTR::null(),
+                PCWSTR::null(),
             )?;
             ScHandle::new(handle)
         };

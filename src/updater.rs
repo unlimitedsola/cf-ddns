@@ -5,26 +5,22 @@ use anyhow::Result;
 use futures::future::{join, join_all};
 use log::{error, info};
 
-use crate::AppContext;
 use crate::config::ZoneRecord;
 use crate::lookup::LookupProvider;
+use crate::AppContext;
 
 impl AppContext {
-    pub async fn update(self: Arc<Self>, ns: Option<String>) -> Result<()> {
+    pub async fn update(&self, ns: Option<&String>) -> Result<()> {
         let mut records = self.config.zone_records();
         if let Some(ns) = ns {
             records.retain(|rec| rec.ns == ns)
         }
 
-        join(
-            self.clone().update_v4(&records),
-            self.clone().update_v6(&records),
-        )
-            .await;
+        join(self.update_v4(&records), self.update_v6(&records)).await;
         Ok(())
     }
 
-    async fn update_v4(self: Arc<Self>, records: &[ZoneRecord<'_>]) {
+    async fn update_v4(&self, records: &[ZoneRecord<'_>]) {
         if !self.config.v4_enabled() {
             info!("Skipped IPv4 since it is disabled by config.");
             return;
@@ -40,7 +36,7 @@ impl AppContext {
         join_all(records.iter().map(|rec| self.update_record(rec, addr))).await;
     }
 
-    async fn update_v6(self: Arc<Self>, records: &[ZoneRecord<'_>]) {
+    async fn update_v6(&self, records: &[ZoneRecord<'_>]) {
         if !self.config.v6_enabled() {
             info!("Skipped IPv6 since it is disabled by config.");
             return;
