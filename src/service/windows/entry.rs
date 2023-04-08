@@ -1,14 +1,16 @@
+use std::sync::Arc;
+
 use anyhow::Result;
+use clap::Parser;
 use windows::core::PWSTR;
 
-use crate::service::windows::sys::service_dispatcher;
+use crate::cli::Cli;
+use crate::service::windows::sys::service_control;
+use crate::service::windows::sys::service_control::register;
+use crate::AppContext;
 
 pub fn service_entry() -> Result<()> {
-    let mut empty_str: [u16; 1] = [0; 1];
-    service_dispatcher::start(
-        PWSTR::from_raw(&mut empty_str as *mut _),
-        Some(ffi_service_entry),
-    )
+    service_control::start(ffi_service_entry)
 }
 
 pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
@@ -23,3 +25,9 @@ unsafe fn parse_service_entry_arguments(argc: u32, argv: *mut PWSTR) -> Vec<Stri
 }
 
 fn service_main(args: Vec<String>) {}
+
+async fn service_main_async(args: Vec<String>) -> Result<()> {
+    let cli = Cli::try_parse_from(args)?;
+    let app = Arc::new(AppContext::new(cli)?);
+    Ok(())
+}

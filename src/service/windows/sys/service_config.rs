@@ -1,6 +1,7 @@
 use windows::Win32::System::Services::{ENUM_SERVICE_TYPE, SERVICE_ERROR, SERVICE_START_TYPE};
 
 /// Service config holder
+///
 /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-createservicew
 pub struct ServiceConfig<'a> {
     pub name: &'a str,

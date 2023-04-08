@@ -10,23 +10,23 @@ description = "DDNS updater for Cloudflare"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.66"
-async-trait = "0.1.58"
-clap = { version = "4.0.25", features = ["derive"] }
+anyhow = "1.0.70"
+async-trait = "0.1.68"
+clap = { version = "4.2.1", features = ["derive"] }
 env_logger = "0.10.0"
-futures = "0.3.25"
+futures = "0.3.28"
 log = "0.4.17"
-reqwest = { version = "0.11.12", features = ["json"] }
-serde = { version = "1.0.147", features = ["derive"] }
-serde_json = "1.0.87"
-serde_with = "2.1.0"
-serde_yaml = "0.9.14"
-tokio = { version = "1.21.2", features = ["full"] }
+reqwest = { version = "0.11.16", features = ["json"] }
+serde = { version = "1.0.159", features = ["derive"] }
+serde_json = "1.0.95"
+serde_with = "2.3.2"
+serde_yaml = "0.9.21"
+tokio = { version = "1.27.0", features = ["full"] }
 
 [target.'cfg(windows)'.dependencies]
 
 [target.'cfg(windows)'.dependencies.windows]
-version = "0.44.0"
+version = "0.48.0"
 features = [
     "Win32_Foundation",
     "Win32_System_Kernel",

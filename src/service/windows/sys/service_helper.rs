@@ -4,7 +4,7 @@ use std::mem::size_of;
 use std::ptr::null_mut;
 use std::slice::from_raw_parts;
 
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Result};
 use windows::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
 use windows::Win32::System::Threading;
 use windows::Win32::System::Threading::{
@@ -15,14 +15,16 @@ use windows::Win32::System::WindowsProgramming::{
 };
 use Threading::NtQueryInformationProcess;
 
-/// Ref: https://cs.opensource.google/go/x/sys/+/refs/tags/v0.5.0:windows/svc/security.go;l=69
-/// Ref: https://github.com/dotnet/runtime/blob/36bf84fc4a89209f4fdbc1fc201e81afd8be49b0/src/libraries/Microsoft.Extensions.Hosting.WindowsServices/src/WindowsServiceHelpers.cs
+/// Determines if the current process is running as a Windows service.
+///
+/// The implementation is borrowed from golang's `x/sys/windows/svc/security.go`:
+/// https://cs.opensource.google/go/x/sys/+/refs/tags/v0.5.0:windows/svc/security.go;l=69
+/// which they also borrowed from the following .NET implementation:
+/// https://github.com/dotnet/runtime/blob/36bf84fc4a89209f4fdbc1fc201e81afd8be49b0/src/libraries/Microsoft.Extensions.Hosting.WindowsServices/src/WindowsServiceHelpers.cs
 pub fn is_in_windows_service() -> Result<bool> {
     let is_in_service = unsafe {
         let cur_process = current_process_info()?;
-        // Reserved3 is actually InheritedFromUniqueProcessId as per the MS documentation
-        // https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryinformationprocess
-        let parent_process = find_system_process(cur_process.Reserved3 as u32)?;
+        let parent_process = find_system_process(cur_process.InheritedFromUniqueProcessId)?;
 
         parent_process.session_id == 0
             && parent_process
@@ -49,7 +51,7 @@ struct SystemProcessInfo {
     image_name: String,
 }
 
-unsafe fn find_system_process(pid: u32) -> Result<SystemProcessInfo> {
+unsafe fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
     // Generally, you need at least 512 KiB to fit all process info.
     let mut buf_size = 512 * 1024;
     loop {
@@ -93,11 +95,11 @@ unsafe fn find_system_process(pid: u32) -> Result<SystemProcessInfo> {
     }
 }
 
-unsafe fn parse_and_find_system_process(pid: u32, buf: *mut u8) -> Result<SystemProcessInfo> {
+unsafe fn parse_and_find_system_process(pid: usize, buf: *mut u8) -> Result<SystemProcessInfo> {
     let mut offset = 0;
     loop {
         let info = &*(buf.offset(offset) as *const SYSTEM_PROCESS_INFORMATION);
-        if info.UniqueProcessId.0 as u32 == pid {
+        if info.UniqueProcessId.0 as usize == pid {
             return Ok(SystemProcessInfo {
                 session_id: info.SessionId,
                 image_name: String::from_utf16(from_raw_parts(
@@ -107,10 +109,7 @@ unsafe fn parse_and_find_system_process(pid: u32, buf: *mut u8) -> Result<System
             });
         }
         if info.NextEntryOffset == 0 {
-            return Err(Error::msg(format!(
-                "Cannot find the specified pid: {}",
-                pid
-            )));
+            return Err(anyhow!("Could not find process with pid {}", pid));
         }
         offset += info.NextEntryOffset as isize;
     }

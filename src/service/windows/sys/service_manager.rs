@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::System::Services;
 use windows::Win32::System::Services::SERVICES_ACTIVE_DATABASEW;
