@@ -46,7 +46,7 @@ impl AppContext {
 async fn main() -> Result<()> {
     #[cfg(windows)]
     if service::is_in_windows_service()? {
-        return service::service_entry();
+        return service::run_as_service();
     }
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 

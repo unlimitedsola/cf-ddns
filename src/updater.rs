@@ -1,7 +1,8 @@
 use std::net::IpAddr;
 
 use anyhow::Result;
-use futures::future::{join, join_all};
+use futures::future::join_all;
+use futures::join;
 use log::{error, info};
 
 use crate::config::ZoneRecord;
@@ -15,7 +16,7 @@ impl AppContext {
             records.retain(|rec| rec.ns == ns)
         }
 
-        join(self.update_v4(&records), self.update_v6(&records)).await;
+        join!(self.update_v4(&records), self.update_v6(&records));
         Ok(())
     }
 

@@ -4,7 +4,8 @@ use std::mem::size_of;
 use std::ptr::null_mut;
 use std::slice::from_raw_parts;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
+use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
 use windows::Win32::System::Threading;
 use windows::Win32::System::Threading::{
@@ -14,6 +15,13 @@ use windows::Win32::System::WindowsProgramming::{
     NtQuerySystemInformation, SystemProcessInformation, SYSTEM_PROCESS_INFORMATION,
 };
 use Threading::NtQueryInformationProcess;
+
+/// Convert Windows service entry arguments to a Rust `Vec<String>`.
+pub unsafe fn parse_service_entry_arguments(argc: u32, argv: *mut PWSTR) -> Vec<String> {
+    (0..argc)
+        .map(|i| (*argv.offset(i as isize)).to_string().unwrap())
+        .collect()
+}
 
 /// Determines if the current process is running as a Windows service.
 ///
@@ -55,30 +63,22 @@ unsafe fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
     // Generally, you need at least 512 KiB to fit all process info.
     let mut buf_size = 512 * 1024;
     loop {
-        let layout = Layout::array::<u8>(buf_size)?;
-        // SAFETY: Deallocate before returning errors
-        let buf = alloc(layout);
-        if buf.is_null() {
-            handle_alloc_error(layout);
-        }
+        let mut buf = vec![0_u8; buf_size];
 
         // If query failed with insufficient buffer size, the expected size
         // will be written into `needed`.
         let mut needed = 0;
         let res = NtQuerySystemInformation(
             SystemProcessInformation,
-            buf as *mut _,
+            buf.as_mut_ptr() as *mut c_void,
             buf_size as u32,
             &mut needed,
         );
         match res {
             Ok(_) => {
-                let result = parse_and_find_system_process(pid, buf);
-                dealloc(buf, layout);
-                return result;
+                return parse_and_find_system_process(pid, buf.as_mut_ptr());
             }
             Err(e) => {
-                dealloc(buf, layout);
                 if e.code() == STATUS_INFO_LENGTH_MISMATCH.to_hresult() {
                     if needed != 0 {
                         // Adding more kilo bytes in case there were new processes just spawned in
@@ -88,7 +88,7 @@ unsafe fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
                         buf_size *= 2;
                     };
                 } else {
-                    return Err(e.into());
+                    bail!(e);
                 }
             }
         }
@@ -109,7 +109,8 @@ unsafe fn parse_and_find_system_process(pid: usize, buf: *mut u8) -> Result<Syst
             });
         }
         if info.NextEntryOffset == 0 {
-            return Err(anyhow!("Could not find process with pid {}", pid));
+            // Reached the end of the list
+            bail!("Could not find process with pid {}", pid);
         }
         offset += info.NextEntryOffset as isize;
     }
