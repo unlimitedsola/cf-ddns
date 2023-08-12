@@ -22,7 +22,7 @@ pub struct Config {
 #[serde(rename_all = "lowercase")]
 pub enum LookupConfig {
     #[default]
-    ICANHAZIP,
+    ICanHazIp,
 }
 
 impl Config {

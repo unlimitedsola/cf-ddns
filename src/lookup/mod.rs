@@ -5,7 +5,6 @@ use async_trait::async_trait;
 
 use crate::config::{Config, LookupConfig};
 use crate::lookup::icanhazip::ICanHazIp;
-use crate::lookup::Provider::ICANHAZIP;
 
 mod icanhazip;
 
@@ -16,13 +15,13 @@ pub trait LookupProvider {
 }
 
 pub enum Provider {
-    ICANHAZIP(ICanHazIp),
+    ICanHazIp(ICanHazIp),
 }
 
 impl Provider {
     pub fn new(cfg: &Config) -> Self {
         match cfg.lookup.as_ref() {
-            None | Some(LookupConfig::ICANHAZIP) => ICANHAZIP(ICanHazIp),
+            None | Some(LookupConfig::ICanHazIp) => Provider::ICanHazIp(ICanHazIp),
         }
     }
 }
@@ -31,14 +30,14 @@ impl Provider {
 impl LookupProvider for Provider {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
         match self {
-            ICANHAZIP(i) => i.lookup_v4(),
+            Provider::ICanHazIp(i) => i.lookup_v4(),
         }
-            .await
+        .await
     }
     async fn lookup_v6(&self) -> Result<Ipv6Addr> {
         match self {
-            ICANHAZIP(i) => i.lookup_v6(),
+            Provider::ICanHazIp(i) => i.lookup_v6(),
         }
-            .await
+        .await
     }
 }
