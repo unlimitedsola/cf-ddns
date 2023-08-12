@@ -14,7 +14,7 @@ use crate::service::{SERVICE_DISPLAY_NAME, SERVICE_NAME};
 mod entry;
 mod sys;
 
-fn install() -> Result<()> {
+pub fn install() -> Result<()> {
     let mgr = ServiceManager::local_computer()?;
     mgr.create_service(ServiceCreateConfig {
         name: SERVICE_NAME,
@@ -23,4 +23,9 @@ fn install() -> Result<()> {
         command: current_exe()?.to_str().context("Invalid path")?,
     })?;
     Ok(())
+}
+
+pub fn uninstall() -> Result<()> {
+    let mgr = ServiceManager::local_computer()?;
+    mgr.open_service(SERVICE_NAME)?.delete()
 }

@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::cli::Commands::{Service, Update};
-use crate::AppContext;
+use crate::{service, AppContext};
 
 #[derive(Debug, Parser)]
 #[command(name = "cf-ddns")]
@@ -31,7 +31,7 @@ pub enum Commands {
 #[derive(Debug, Subcommand)]
 pub enum ServiceCommands {
     Install,
-    Remove,
+    Uninstall,
     Start,
     Stop,
     Run,
@@ -45,6 +45,8 @@ impl AppContext {
             Some(cmd) => match cmd {
                 Update { ns } => self.update(ns.as_ref()).await,
                 Service { command } => match command {
+                    ServiceCommands::Install => service::install(),
+                    ServiceCommands::Uninstall => service::uninstall(),
                     _ => Ok(()),
                 },
             },

@@ -32,11 +32,11 @@ impl ServiceManager {
         Ok(ServiceManager { handle })
     }
 
-    pub fn open_service(&self, name: PCWSTR) -> Result<Service> {
+    pub fn open_service(&self, name: &str) -> Result<Service> {
         let handle = unsafe {
             let handle = Services::OpenServiceW(
                 self.handle.raw_handle(),
-                name,
+                &HSTRING::from(name),
                 // golang's implementation hardcoded SERVICE_ALL_ACCESS for simplicity
                 SERVICE_ALL_ACCESS,
             )?;

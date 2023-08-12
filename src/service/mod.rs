@@ -1,7 +1,11 @@
 #[cfg(windows)]
+pub use self::windows::install;
+#[cfg(windows)]
 pub use self::windows::is_in_windows_service;
 #[cfg(windows)]
 pub use self::windows::run_as_service;
+#[cfg(windows)]
+pub use self::windows::uninstall;
 
 #[cfg(windows)]
 mod windows;

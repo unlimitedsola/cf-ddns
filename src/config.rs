@@ -34,7 +34,7 @@ impl Config {
     }
 
     fn default_path() -> Result<PathBuf> {
-        Ok(current_exe()?.with_file_name("config.json"))
+        Ok(current_exe()?.with_file_name("config.yaml"))
     }
 }
 

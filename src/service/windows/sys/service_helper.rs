@@ -1,10 +1,8 @@
-use std::alloc::{alloc, dealloc, handle_alloc_error, Layout};
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::null_mut;
-use std::slice::from_raw_parts;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
 use windows::Win32::System::Threading;
@@ -54,6 +52,7 @@ unsafe fn current_process_info() -> Result<PROCESS_BASIC_INFORMATION> {
     Ok(res)
 }
 
+#[derive(Debug)]
 struct SystemProcessInfo {
     session_id: u32,
     image_name: String,
@@ -102,10 +101,7 @@ unsafe fn parse_and_find_system_process(pid: usize, buf: *mut u8) -> Result<Syst
         if info.UniqueProcessId.0 as usize == pid {
             return Ok(SystemProcessInfo {
                 session_id: info.SessionId,
-                image_name: String::from_utf16(from_raw_parts(
-                    info.ImageName.Buffer.as_ptr(),
-                    info.ImageName.Length as usize,
-                ))?,
+                image_name: info.ImageName.Buffer.to_string()?,
             });
         }
         if info.NextEntryOffset == 0 {

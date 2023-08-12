@@ -1,7 +1,7 @@
 use anyhow::Result;
-use windows::core::{HSTRING, PCWSTR, PWSTR};
+use windows::core::{HSTRING, PWSTR};
 use windows::Win32::System::Services;
-use windows::Win32::System::Services::{SERVICE_STATUS, SERVICE_STATUS_CURRENT_STATE};
+use windows::Win32::System::Services::SERVICE_STATUS;
 
 pub type ServiceMain = extern "system" fn(argc: u32, argv: *mut PWSTR) -> ();
 
