@@ -1,13 +1,13 @@
 //! Partial implementation, only contains fields that we'll use
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::net::IpAddr::{V4, V6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
+use crate::cloudflare::record::DnsContent::{A, AAAA};
 use crate::cloudflare::ApiRequest;
-use crate::cloudflare::dns::DnsContent::{A, AAAA};
 
 #[derive(Deserialize, Debug)]
 pub struct DnsRecord {
