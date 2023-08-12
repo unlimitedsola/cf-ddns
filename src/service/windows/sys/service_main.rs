@@ -1,11 +1,14 @@
 use std::sync::{Arc, Mutex};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::channel::oneshot;
 use futures::channel::oneshot::{Receiver, Sender};
+use tracing::{error, info};
 use windows::core::{HSTRING, PWSTR};
 use windows::Win32::System::Services;
-use windows::Win32::System::Services::{SERVICE_ACCEPT_STOP, SERVICE_RUNNING, SERVICE_STATUS};
+use windows::Win32::System::Services::{
+    SERVICE_ACCEPT_STOP, SERVICE_RUNNING, SERVICE_STATUS, SERVICE_WIN32_OWN_PROCESS,
+};
 
 use crate::service::windows::sys::parse_service_entry_arguments;
 use crate::service::windows::sys::service_control::{register, start};
@@ -37,7 +40,16 @@ pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
 }
 
 pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
-    let args = unsafe { parse_service_entry_arguments(argc, argv) };
+    let r = run_service(argc, argv);
+    if let Err(e) = r {
+        error!("Error occurred while starting the service: {e:#?}");
+    }
+}
+
+fn run_service(argc: u32, argv: *mut PWSTR) -> Result<()> {
+    let mut args = unsafe { parse_service_entry_arguments(argc, argv) };
+    // Remove the first argument, which is the executable name.
+    args.remove(0);
     let (tx, rx) = oneshot::channel::<()>();
     let (name, entry) = {
         let mut service = SERVICE.lock().unwrap();
@@ -47,26 +59,31 @@ pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
             service.entry.as_ref().unwrap().clone(),
         )
     };
-    let handle = register(&name, ffi_control_handler).unwrap();
+    let handle = register(&name, ffi_control_handler).context("registering service handle")?;
     handle
         .set_status(SERVICE_STATUS {
+            dwServiceType: SERVICE_WIN32_OWN_PROCESS,
             dwCurrentState: SERVICE_RUNNING,
             dwControlsAccepted: SERVICE_ACCEPT_STOP,
             ..SERVICE_STATUS::default()
         })
-        .unwrap();
+        .context("updating service status to RUNNING")?;
     let result = entry(args, rx);
     handle
         .set_status(SERVICE_STATUS {
+            dwServiceType: SERVICE_WIN32_OWN_PROCESS,
             dwCurrentState: Services::SERVICE_STOPPED,
-            dwWin32ExitCode: result.map_or(1, |_| 0),
+            dwWin32ExitCode: result.as_ref().map_or(1, |_| 0),
             ..SERVICE_STATUS::default()
         })
-        .unwrap();
+        .context("updating service status to STOPPED")?;
+    result
 }
 
 pub extern "system" fn ffi_control_handler(control: u32) {
+    info!("Received service control signal.");
     if control == Services::SERVICE_CONTROL_STOP {
+        info!("Sending stop signal to service worker...");
         let tx = SERVICE.lock().unwrap().cancel.take().unwrap();
         tx.send(()).unwrap();
     }

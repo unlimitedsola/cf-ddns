@@ -13,9 +13,7 @@ description = "DDNS updater for Cloudflare"
 anyhow = "1.0.72"
 async-trait = "0.1.72"
 clap = { version = "4.3.21", features = ["derive"] }
-env_logger = "0.10.0"
 futures = "0.3.28"
-log = "0.4.19"
 reqwest = { version = "0.11.18", features = ["json"] }
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.104"
@@ -23,6 +21,9 @@ serde_with = "3.2.0"
 serde_yaml = "0.9.25"
 tokio = { version = "1.30.0", features = ["full"] }
 tokio-stream = "0.1.14"
+tracing = "0.1.37"
+tracing-appender = "0.2.2"
+tracing-subscriber = "0.3.17"
 
 [target.'cfg(windows)'.dependencies]
 

@@ -1,25 +1,27 @@
 use std::net::IpAddr;
 
-use anyhow::Result;
 use futures::future::join_all;
 use futures::join;
-use log::{error, info};
+use tracing::{error, info, instrument};
 
 use crate::config::ZoneRecord;
 use crate::lookup::LookupProvider;
 use crate::AppContext;
 
 impl AppContext {
-    pub async fn update(&self, ns: Option<&String>) -> Result<()> {
+    #[instrument(skip(self))]
+    pub async fn update(&self, ns: Option<&String>) {
         let mut records = self.config.zone_records();
         if let Some(ns) = ns {
             records.retain(|rec| rec.ns == ns)
         }
 
+        info!("Updating records: {records:?}");
+
         join!(self.update_v4(&records), self.update_v6(&records));
-        Ok(())
     }
 
+    #[instrument(skip_all)]
     async fn update_v4(&self, records: &[ZoneRecord<'_>]) {
         if !self.config.v4_enabled() {
             info!("Skipped IPv4 since it is disabled by config.");
@@ -36,6 +38,7 @@ impl AppContext {
         join_all(records.iter().map(|rec| self.update_record(rec, addr))).await;
     }
 
+    #[instrument(skip_all)]
     async fn update_v6(&self, records: &[ZoneRecord<'_>]) {
         if !self.config.v6_enabled() {
             info!("Skipped IPv6 since it is disabled by config.");
@@ -53,6 +56,7 @@ impl AppContext {
         join_all(records.iter().map(|rec| self.update_record(rec, addr))).await;
     }
 
+    #[instrument(skip(self))]
     async fn update_record(&self, rec: &ZoneRecord<'_>, addr: IpAddr) {
         let rec_type = match addr {
             IpAddr::V4(_) => "A",

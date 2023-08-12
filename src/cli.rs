@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
+use tracing::instrument;
 
 use crate::cli::Commands::{Service, Update};
 use crate::{service, AppContext};
@@ -39,17 +40,19 @@ pub enum ServiceCommands {
 }
 
 impl AppContext {
+    #[instrument(skip(self), fields(cli = ? self.cli), ret, err)]
     pub async fn run(&self) -> Result<()> {
         match self.cli.command.as_ref() {
             None => self.update(None).await,
             Some(cmd) => match cmd {
                 Update { ns } => self.update(ns.as_ref()).await,
                 Service { command } => match command {
-                    ServiceCommands::Install => service::install(),
-                    ServiceCommands::Uninstall => service::uninstall(),
-                    _ => Ok(()),
+                    ServiceCommands::Install => service::install()?,
+                    ServiceCommands::Uninstall => service::uninstall()?,
+                    _ => {}
                 },
             },
         }
+        Ok(())
     }
 }

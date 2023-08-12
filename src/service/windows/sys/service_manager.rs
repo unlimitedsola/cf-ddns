@@ -52,6 +52,7 @@ impl ServiceManager {
 pub struct ServiceCreateConfig<'a> {
     pub name: &'a str,
     pub display_name: &'a str,
+    pub description: &'a str,
     pub start_type: SERVICE_START_TYPE,
     /// Can also have arguments
     pub command: &'a str,
@@ -85,6 +86,8 @@ impl ServiceManager {
             )?;
             ScHandle::new(handle)
         };
-        Ok(Service::new(handle))
+        let service = Service::new(handle);
+        service.update_description(config.description)?;
+        Ok(service)
     }
 }

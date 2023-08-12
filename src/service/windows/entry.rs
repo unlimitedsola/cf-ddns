@@ -1,3 +1,4 @@
+use std::env::current_exe;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -6,6 +7,7 @@ use clap::Parser;
 use futures::channel::oneshot::Receiver;
 use futures::StreamExt;
 use tokio_stream::wrappers::IntervalStream;
+use tracing::{error, info, instrument};
 
 use crate::cli::Cli;
 use crate::service::windows::sys::service_main;
@@ -21,7 +23,7 @@ async fn service_main_async(args: Vec<String>, cancel: Receiver<()>) -> Result<(
             let app = Arc::clone(&app);
             async move {
                 if let Err(e) = app.run().await {
-                    log::error!("Error in service: {}", e);
+                    error!("Error in service: {e:#?}");
                 }
             }
         })
@@ -29,6 +31,7 @@ async fn service_main_async(args: Vec<String>, cancel: Receiver<()>) -> Result<(
     Ok(())
 }
 
+#[instrument(skip(cancel), ret, err)]
 fn service_main(args: Vec<String>, cancel: Receiver<()>) -> Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -37,5 +40,12 @@ fn service_main(args: Vec<String>, cancel: Receiver<()>) -> Result<()> {
 }
 
 pub fn run_as_service() -> Result<()> {
+    let file_appender =
+        tracing_appender::rolling::daily(current_exe()?.parent().unwrap(), "cf-ddns.log");
+    tracing_subscriber::fmt()
+        .with_ansi(false)
+        .with_writer(file_appender)
+        .init();
+    info!("Starting as a Windows service...");
     service_main::run(SERVICE_NAME, service_main)
 }

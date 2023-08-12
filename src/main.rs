@@ -2,7 +2,6 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use env_logger::Env;
 
 use crate::cache::IdCache;
 use crate::cli::Cli;
@@ -28,7 +27,7 @@ pub struct AppContext {
 
 impl AppContext {
     pub fn new(cli: Cli) -> Result<Self> {
-        let config = Config::load(cli.config.as_ref()).with_context(|| "Unable to load config.")?;
+        let config = Config::load(cli.config.as_ref()).context("Unable to load config.")?;
         let lookup = Provider::new(&config);
         let client = Client::new(&config.token)?;
         let id_cache = Arc::new(Mutex::new(IdCache::load().unwrap_or_default()));
@@ -48,7 +47,8 @@ async fn main() -> Result<()> {
     if service::is_in_windows_service()? {
         return service::run_as_service();
     }
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    tracing_subscriber::fmt().init();
 
     let cli: Cli = Cli::parse();
     let app = AppContext::new(cli)?;
