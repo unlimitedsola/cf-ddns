@@ -15,6 +15,7 @@ cfg_windows! {
 }
 
 cfg_not_supported! {
-    pub fn install() -> Result<()> {}
-    pub fn uninstall() -> Result<()> {}
+    use anyhow::Result;
+    pub fn install() -> Result<()> { Ok(()) }
+    pub fn uninstall() -> Result<()> { Ok(()) }
 }
