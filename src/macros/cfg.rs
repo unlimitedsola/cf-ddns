@@ -11,8 +11,8 @@ macro_rules! cfg_not_supported {
     ($($item:item)*) => {
         $(
             #[cfg(not(any(
-                unix,
-                windows
+                windows,
+                target_os = "linux"
             )))]
             $item
         )*
