@@ -14,6 +14,7 @@ mod cli;
 mod cloudflare;
 mod config;
 mod lookup;
+mod macros;
 mod service;
 mod updater;
 
