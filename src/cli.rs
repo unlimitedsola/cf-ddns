@@ -45,7 +45,7 @@ impl AppContext {
         match self.cli.command.as_ref() {
             None => self.update(None).await,
             Some(cmd) => match cmd {
-                Update { ns } => self.update(ns.as_ref()).await,
+                Update { ns } => self.update(ns.as_deref()).await,
                 Service { command } => match command {
                     ServiceCommands::Install => service::install()?,
                     ServiceCommands::Uninstall => service::uninstall()?,

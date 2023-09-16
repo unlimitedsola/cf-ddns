@@ -10,7 +10,7 @@ use crate::AppContext;
 
 impl AppContext {
     #[instrument(skip(self))]
-    pub async fn update(&self, ns: Option<&String>) {
+    pub async fn update(&self, ns: Option<&str>) {
         let mut records = self.config.zone_records();
         if let Some(ns) = ns {
             records.retain(|rec| rec.ns == ns)
