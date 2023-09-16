@@ -4,7 +4,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
-use crate::cli::Commands::{Service, Update};
+use crate::cli::Command::{Service, Update};
 use crate::{service, AppContext};
 
 #[derive(Debug, Parser)]
@@ -15,22 +15,22 @@ pub struct Cli {
     #[arg(short, long, value_name = "PATH")]
     pub config: Option<PathBuf>,
     #[command(subcommand)]
-    pub command: Option<Commands>,
+    pub command: Option<Command>,
 }
 
 #[derive(Debug, Subcommand)]
-pub enum Commands {
+pub enum Command {
     Update {
         ns: Option<String>,
     },
     Service {
         #[command(subcommand)]
-        command: ServiceCommands,
+        command: ServiceCommand,
     },
 }
 
 #[derive(Debug, Subcommand)]
-pub enum ServiceCommands {
+pub enum ServiceCommand {
     Install,
     Uninstall,
     Start,
@@ -47,8 +47,8 @@ impl AppContext {
             Some(cmd) => match cmd {
                 Update { ns } => self.update(ns.as_deref()).await,
                 Service { command } => match command {
-                    ServiceCommands::Install => service::install()?,
-                    ServiceCommands::Uninstall => service::uninstall()?,
+                    ServiceCommand::Install => service::install()?,
+                    ServiceCommand::Uninstall => service::uninstall()?,
                     _ => {}
                 },
             },
