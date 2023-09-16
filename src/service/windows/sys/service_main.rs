@@ -1,3 +1,5 @@
+//! A crude wrapper to make service entry point more Rustic.
+
 use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};

@@ -4,8 +4,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
+use crate::AppContext;
 use crate::cli::Command::{Service, Update};
-use crate::{service, AppContext};
 
 #[derive(Debug, Parser)]
 #[command(name = "cf-ddns")]
@@ -46,11 +46,7 @@ impl AppContext {
             None => self.update(None).await,
             Some(cmd) => match cmd {
                 Update { ns } => self.update(ns.as_deref()).await,
-                Service { command } => match command {
-                    ServiceCommand::Install => service::install()?,
-                    ServiceCommand::Uninstall => service::uninstall()?,
-                    _ => {}
-                },
+                Service { command } => self.run_service_command(command).await?,
             },
         }
         Ok(())
