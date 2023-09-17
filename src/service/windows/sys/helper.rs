@@ -114,7 +114,7 @@ unsafe fn parse_and_find_system_process(pid: usize, buf: *mut u8) -> Result<Syst
 
 #[cfg(test)]
 mod tests {
-    use crate::service::windows::sys::service_helper::is_in_windows_service;
+    use crate::service::windows::sys::helper::is_in_windows_service;
 
     #[test]
     fn test_should_not_in_windows_service() {

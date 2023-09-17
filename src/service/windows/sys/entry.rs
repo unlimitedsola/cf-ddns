@@ -12,8 +12,8 @@ use windows::Win32::System::Services::{
     SERVICE_ACCEPT_STOP, SERVICE_RUNNING, SERVICE_STATUS, SERVICE_WIN32_OWN_PROCESS,
 };
 
+use crate::service::windows::sys::control::{register, start};
 use crate::service::windows::sys::parse_service_entry_arguments;
-use crate::service::windows::sys::service_control::{register, start};
 
 static SERVICE: Mutex<RunningService> = Mutex::new(RunningService {
     name: None,
