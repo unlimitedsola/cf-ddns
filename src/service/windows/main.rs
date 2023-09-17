@@ -10,7 +10,7 @@ use tokio_stream::wrappers::IntervalStream;
 use tracing::{error, info, instrument};
 
 use crate::cli::Cli;
-use crate::service::windows::sys::entry;
+use crate::service::windows::sys::run;
 use crate::service::SERVICE_NAME;
 use crate::AppContext;
 
@@ -47,5 +47,5 @@ pub fn run_as_service() -> Result<()> {
         .with_writer(file_appender)
         .init();
     info!("Starting as a Windows service...");
-    entry::run(SERVICE_NAME, service_main)
+    run(SERVICE_NAME, service_main)
 }

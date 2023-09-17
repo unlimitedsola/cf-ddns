@@ -13,7 +13,7 @@ use windows::Win32::System::Services::{
 };
 
 use crate::service::windows::sys::control::{register, start};
-use crate::service::windows::sys::parse_service_entry_arguments;
+use crate::service::windows::sys::helper::parse_service_entry_arguments;
 
 static SERVICE: Mutex<RunningService> = Mutex::new(RunningService {
     name: None,

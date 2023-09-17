@@ -1,8 +1,10 @@
+use std::env::current_exe;
+
+use anyhow::{Context, Result};
+use windows::Win32::System::Services::SERVICE_AUTO_START;
+
 use crate::service::windows::sys::{ServiceCreateConfig, ServiceManager};
 use crate::service::{SERVICE_DESCRIPTION, SERVICE_DISPLAY_NAME, SERVICE_NAME};
-use anyhow::{Context, Result};
-use std::env::current_exe;
-use windows::Win32::System::Services::SERVICE_AUTO_START;
 
 pub fn install() -> Result<()> {
     let mgr = ServiceManager::local_computer()?;

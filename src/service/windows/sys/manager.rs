@@ -6,8 +6,7 @@ use windows::Win32::System::Services::{
     SERVICE_START_TYPE, SERVICE_WIN32_OWN_PROCESS,
 };
 
-use crate::service::windows::sys::ScHandle;
-use crate::service::windows::sys::Service;
+use crate::service::windows::sys::{ScHandle, Service};
 
 /// Service Control Manager for registering and querying services
 pub struct ServiceManager {

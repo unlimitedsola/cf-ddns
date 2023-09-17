@@ -9,9 +9,8 @@ const SERVICE_DESCRIPTION: &str =
 cfg_if! {
     if #[cfg(windows)] {
         mod windows;
-        pub use self::windows::is_in_windows_service;
-        pub use self::windows::run_as_service;
+        pub use self::windows::*;
     } else {
-        mod default;
+        mod unsupported;
     }
 }
