@@ -14,3 +14,5 @@ cfg_if! {
         mod unsupported;
     }
 }
+
+mod daemon;

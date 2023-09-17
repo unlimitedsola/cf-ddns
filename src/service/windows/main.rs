@@ -1,13 +1,10 @@
 use std::env::current_exe;
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::Result;
 use clap::Parser;
 use futures::channel::oneshot::Receiver;
-use futures::StreamExt;
-use tokio_stream::wrappers::IntervalStream;
-use tracing::{error, info, instrument};
+use tracing::{info, instrument};
 
 use crate::AppContext;
 use crate::cli::Cli;
@@ -17,18 +14,7 @@ use crate::service::windows::sys::run;
 async fn service_main_async(args: Vec<String>, cancel: Receiver<()>) -> Result<()> {
     let cli = Cli::try_parse_from(args)?;
     let app = Arc::new(AppContext::new(cli)?);
-    IntervalStream::new(tokio::time::interval(Duration::from_secs(60)))
-        .take_until(cancel)
-        .for_each(|_| {
-            let app = Arc::clone(&app);
-            async move {
-                if let Err(e) = app.run().await {
-                    error!("Error in service: {e:#?}");
-                }
-            }
-        })
-        .await;
-    Ok(())
+    app.run_service(cancel).await
 }
 
 #[instrument(skip(cancel), ret, err)]
