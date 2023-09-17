@@ -18,7 +18,7 @@ impl LookupProvider for ICanHazIp {
     }
 }
 
-async fn lookup<T: FromStr<Err = AddrParseError>>(url: &str) -> Result<T> {
+async fn lookup<T: FromStr<Err=AddrParseError>>(url: &str) -> Result<T> {
     let body = reqwest::get(url).await?.text().await?;
     body.trim() // ends with \n
         .parse()

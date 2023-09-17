@@ -3,11 +3,11 @@
 use std::net::IpAddr;
 
 use anyhow::{Error, Result};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
-use reqwest::Method;
 use reqwest::{ClientBuilder, Url};
-use serde::de::DeserializeOwned;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
 
 use crate::cloudflare::record::{
     CreateDnsRecord, CreateDnsRecordParams, DnsRecord, ListDnsRecords, ListDnsRecordsParams,
@@ -57,8 +57,8 @@ const BASE_URL: &str = "https://api.cloudflare.com/client/v4/"; // trailing slas
 // Base exchange implementation
 impl Client {
     async fn call<Api>(&self, api: &Api) -> Result<Api::Response>
-    where
-        Api: ApiRequest,
+        where
+            Api: ApiRequest,
     {
         let mut request = self
             .http
@@ -78,8 +78,8 @@ struct Response<T> {
 }
 
 async fn extract_response<T>(resp: reqwest::Response) -> Result<T>
-where
-    T: DeserializeOwned,
+    where
+        T: DeserializeOwned,
 {
     let status = resp.status();
     if status.is_success() {

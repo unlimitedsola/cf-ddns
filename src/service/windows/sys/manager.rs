@@ -2,8 +2,8 @@ use anyhow::Result;
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::System::Services;
 use windows::Win32::System::Services::{
-    SC_MANAGER_ALL_ACCESS, SERVICES_ACTIVE_DATABASEW, SERVICE_ALL_ACCESS, SERVICE_ERROR_IGNORE,
-    SERVICE_START_TYPE, SERVICE_WIN32_OWN_PROCESS,
+    SC_MANAGER_ALL_ACCESS, SERVICE_ALL_ACCESS, SERVICE_ERROR_IGNORE, SERVICE_START_TYPE,
+    SERVICE_WIN32_OWN_PROCESS, SERVICES_ACTIVE_DATABASEW,
 };
 
 use crate::service::windows::sys::{ScHandle, Service};

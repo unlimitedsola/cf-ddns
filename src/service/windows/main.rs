@@ -9,10 +9,10 @@ use futures::StreamExt;
 use tokio_stream::wrappers::IntervalStream;
 use tracing::{error, info, instrument};
 
-use crate::cli::Cli;
-use crate::service::windows::sys::run;
-use crate::service::SERVICE_NAME;
 use crate::AppContext;
+use crate::cli::Cli;
+use crate::service::SERVICE_NAME;
+use crate::service::windows::sys::run;
 
 async fn service_main_async(args: Vec<String>, cancel: Receiver<()>) -> Result<()> {
     let cli = Cli::try_parse_from(args)?;

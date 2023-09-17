@@ -7,9 +7,9 @@ use std::path::PathBuf;
 use anyhow::{Error, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::AppContext;
 use crate::cloudflare::record::DnsContent::{A, AAAA};
 use crate::cloudflare::record::DnsRecord;
-use crate::AppContext;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IdCache {

@@ -4,9 +4,9 @@ use futures::future::join_all;
 use futures::join;
 use tracing::{error, info, instrument};
 
+use crate::AppContext;
 use crate::config::ZoneRecord;
 use crate::lookup::LookupProvider;
-use crate::AppContext;
 
 impl AppContext {
     #[instrument(skip(self))]

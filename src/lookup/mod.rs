@@ -31,13 +31,11 @@ impl LookupProvider for Provider {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
         match self {
             Provider::ICanHazIp(i) => i.lookup_v4(),
-        }
-        .await
+        }.await
     }
     async fn lookup_v6(&self) -> Result<Ipv6Addr> {
         match self {
             Provider::ICanHazIp(i) => i.lookup_v6(),
-        }
-        .await
+        }.await
     }
 }

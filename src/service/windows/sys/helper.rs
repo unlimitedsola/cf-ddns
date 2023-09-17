@@ -3,16 +3,16 @@ use std::mem::size_of;
 use std::ptr::null_mut;
 
 use anyhow::{bail, Result};
+use Threading::NtQueryInformationProcess;
 use windows::core::PWSTR;
 use windows::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
 use windows::Win32::System::Threading;
 use windows::Win32::System::Threading::{
-    GetCurrentProcess, ProcessBasicInformation, PROCESS_BASIC_INFORMATION,
+    GetCurrentProcess, PROCESS_BASIC_INFORMATION, ProcessBasicInformation,
 };
 use windows::Win32::System::WindowsProgramming::{
-    NtQuerySystemInformation, SystemProcessInformation, SYSTEM_PROCESS_INFORMATION,
+    NtQuerySystemInformation, SYSTEM_PROCESS_INFORMATION, SystemProcessInformation,
 };
-use Threading::NtQueryInformationProcess;
 
 /// Convert Windows service entry arguments to a Rust `Vec<String>`.
 pub unsafe fn parse_service_entry_arguments(argc: u32, argv: *mut PWSTR) -> Vec<String> {
@@ -33,9 +33,7 @@ pub fn is_in_windows_service() -> Result<bool> {
         let parent_process = find_system_process(cur_process.InheritedFromUniqueProcessId)?;
 
         parent_process.session_id == 0
-            && parent_process
-                .image_name
-                .eq_ignore_ascii_case("services.exe")
+            && parent_process.image_name.eq_ignore_ascii_case("services.exe")
     };
     Ok(is_in_service)
 }

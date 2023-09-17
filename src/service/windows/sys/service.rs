@@ -28,8 +28,7 @@ impl Service {
                 Some(&SERVICE_DESCRIPTIONW {
                     lpDescription: PWSTR::from_raw(HSTRING::from(desc).as_ptr() as *mut _),
                 } as *const _ as *mut _),
-            )
-            .ok()?;
+            ).ok()?;
         }
         Ok(())
     }
