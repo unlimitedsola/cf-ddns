@@ -18,7 +18,7 @@ pub struct Cli {
     pub command: Option<Command>,
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Clone)]
 pub enum Command {
     Update {
         ns: Option<String>,
@@ -29,7 +29,7 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, Clone)]
 pub enum ServiceCommand {
     Install,
     Uninstall,
@@ -42,11 +42,11 @@ pub enum ServiceCommand {
 impl AppContext {
     #[instrument(skip(self), fields(cli = ? self.cli), ret, err)]
     pub async fn run(&self) -> Result<()> {
-        match self.cli.command.as_ref() {
-            None => self.update(None).await,
+        match self.cli.command.clone() {
+            None => self.update(None).await?,
             Some(cmd) => match cmd {
-                Update { ns } => self.update(ns.as_deref()).await,
-                Service { command } => self.run_service_command(command).await?,
+                Update { ns } => self.update(ns.as_deref()).await?,
+                Service { command } => self.run_service_command(&command).await?,
             },
         }
         Ok(())

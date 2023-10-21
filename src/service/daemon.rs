@@ -12,9 +12,13 @@ impl AppContext {
     pub async fn run_service<Fut>(&self, cancel: Fut) -> Result<()>
         where Fut: Future
     {
+        let updater = self.new_updater()?;
         IntervalStream::new(interval(Duration::from_secs(60)))
             .take_until(cancel)
-            .for_each(|_| self.update(None))
+            .fold(updater, |mut updater, _| async move {
+                updater.update(None).await;
+                updater
+            })
             .await;
         Ok(())
     }
