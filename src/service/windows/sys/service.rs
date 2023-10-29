@@ -16,7 +16,7 @@ impl Service {
     }
 
     pub fn delete(self) -> Result<()> {
-        unsafe { Services::DeleteService(self.handle.raw_handle()).ok()? };
+        unsafe { Services::DeleteService(self.handle.raw_handle())? };
         Ok(())
     }
 
@@ -28,7 +28,7 @@ impl Service {
                 Some(&SERVICE_DESCRIPTIONW {
                     lpDescription: PWSTR::from_raw(HSTRING::from(desc).as_ptr() as *mut _),
                 } as *const _ as *mut _),
-            ).ok()?;
+            )?;
         }
         Ok(())
     }

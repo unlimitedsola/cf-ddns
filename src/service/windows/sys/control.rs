@@ -22,7 +22,7 @@ pub fn start(name: &HSTRING, entry: ServiceMain) -> Result<()> {
         },
         Services::SERVICE_TABLE_ENTRYW::default(),
     ];
-    unsafe { Services::StartServiceCtrlDispatcherW(entry_table.as_ptr()).ok()? };
+    unsafe { Services::StartServiceCtrlDispatcherW(entry_table.as_ptr())? };
     Ok(())
 }
 
@@ -36,7 +36,7 @@ impl ServiceStatusHandle {
     }
 
     pub fn set_status(&self, status: SERVICE_STATUS) -> Result<()> {
-        unsafe { Services::SetServiceStatus(self.0, &status).ok()? };
+        unsafe { Services::SetServiceStatus(self.0, &status)? };
         Ok(())
     }
 }

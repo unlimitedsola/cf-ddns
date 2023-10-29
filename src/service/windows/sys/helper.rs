@@ -3,16 +3,14 @@ use std::mem::size_of;
 use std::ptr::null_mut;
 
 use anyhow::{bail, Result};
-use Threading::NtQueryInformationProcess;
 use windows::core::PWSTR;
+use windows::Wdk::System::SystemInformation::{NtQuerySystemInformation, SystemProcessInformation};
+use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
 use windows::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
-use windows::Win32::System::Threading;
 use windows::Win32::System::Threading::{
-    GetCurrentProcess, PROCESS_BASIC_INFORMATION, ProcessBasicInformation,
+    GetCurrentProcess, PROCESS_BASIC_INFORMATION,
 };
-use windows::Win32::System::WindowsProgramming::{
-    NtQuerySystemInformation, SYSTEM_PROCESS_INFORMATION, SystemProcessInformation,
-};
+use windows::Win32::System::WindowsProgramming::SYSTEM_PROCESS_INFORMATION;
 
 /// Convert Windows service entry arguments to a Rust `Vec<String>`.
 pub unsafe fn parse_service_entry_arguments(argc: u32, argv: *mut PWSTR) -> Vec<String> {
