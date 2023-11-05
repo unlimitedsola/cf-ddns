@@ -40,3 +40,6 @@ features = [
     "Wdk_System_Threading",
     "Wdk_System_SystemInformation"
 ]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plist = "1.5.1"
