@@ -19,9 +19,9 @@ pub enum Provider {
 }
 
 impl Provider {
-    pub fn new(cfg: &Config) -> Self {
+    pub fn new(cfg: &Config) -> Result<Self> {
         match cfg.lookup.as_ref() {
-            None | Some(LookupConfig::ICanHazIp) => Provider::ICanHazIp(ICanHazIp),
+            None | Some(LookupConfig::ICanHazIp) => Ok(Provider::ICanHazIp(ICanHazIp::new()?)),
         }
     }
 }
