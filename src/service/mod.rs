@@ -10,6 +10,8 @@ cfg_if! {
     if #[cfg(windows)] {
         mod windows;
         pub use self::windows::*;
+    } else if #[cfg(target_os = "macos")] {
+        mod macos;
     } else {
         mod unsupported;
     }
