@@ -36,7 +36,7 @@ const PLIST_PATH: &str = formatcp!("/Library/LaunchDaemons/{SERVICE_NAME}.plist"
 
 pub fn install() -> Result<()> {
     let current_exe = current_exe().context("unable to get executable path")?;
-    let log_path = current_exe.with_file_name("cf-ddns.log");
+    let log_path = current_exe.with_file_name(formatcp!("{SERVICE_NAME}.log"));
 
     let cfg = LaunchdConfig {
         program_arguments: Box::new([
