@@ -44,12 +44,14 @@ mod tests {
     use crate::lookup::LookupProvider;
 
     #[tokio::test]
+    #[ignore]
     async fn v4_test() {
         let r = ICanHazIp::new().unwrap().lookup_v4().await.unwrap();
         println!("{r:?}")
     }
 
     #[tokio::test]
+    #[ignore]
     async fn v6_test() {
         let r = ICanHazIp::new().unwrap().lookup_v6().await.unwrap();
         println!("{r:?}")
