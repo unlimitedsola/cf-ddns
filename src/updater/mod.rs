@@ -65,7 +65,7 @@ impl<'a> Updater<'a> {
 
     #[instrument(skip_all)]
     async fn update_v4(&self, records: &[ZoneRecord<'_>]) {
-        if !self.app.config.v4_enabled() {
+        if !&self.app.config.v4 {
             info!("Skipped IPv4 since it is disabled by config.");
             return;
         }
@@ -82,7 +82,7 @@ impl<'a> Updater<'a> {
 
     #[instrument(skip_all)]
     async fn update_v6(&self, records: &[ZoneRecord<'_>]) {
-        if !self.app.config.v6_enabled() {
+        if !&self.app.config.v6 {
             info!("Skipped IPv6 since it is disabled by config.");
             return;
         }
