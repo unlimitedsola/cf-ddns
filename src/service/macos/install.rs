@@ -3,6 +3,7 @@ use std::fs::remove_file;
 use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context, Result};
+use const_format::formatcp;
 use serde::Serialize;
 
 use crate::service::SERVICE_NAME;
@@ -31,7 +32,7 @@ impl Default for LaunchdConfig<'_> {
     }
 }
 
-const PLIST_FILE: &str = "/Library/LaunchDaemons/cf-ddns.plist";
+const PLIST_PATH: &str = formatcp!("/Library/LaunchDaemons/{SERVICE_NAME}.plist");
 
 pub fn install() -> Result<()> {
     let current_exe = current_exe().context("unable to get executable path")?;
@@ -47,13 +48,13 @@ pub fn install() -> Result<()> {
         standard_error_path: log_path.to_str(),
         ..Default::default()
     };
-    plist::to_file_xml(PLIST_FILE, &cfg).context("unable to write service file")?;
-    launchctl(&["load", "-w", PLIST_FILE])
+    plist::to_file_xml(PLIST_PATH, &cfg).context("unable to write service file")?;
+    launchctl(&["load", "-w", PLIST_PATH])
 }
 
 pub fn uninstall() -> Result<()> {
-    launchctl(&["unload", PLIST_FILE])?;
-    remove_file(PLIST_FILE).context("unable to remove service file")
+    launchctl(&["unload", PLIST_PATH])?;
+    remove_file(PLIST_PATH).context("unable to remove service file")
 }
 
 const LAUNCHCTL: &str = "launchctl";
@@ -87,7 +88,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn plist() {
+    fn plist_deserialize() {
         let cfg = LaunchdConfig {
             program_arguments: Box::new(["test", "test"]),
             ..Default::default()
@@ -113,5 +114,10 @@ mod tests {
 	<true/>
 </dict>
 </plist>"#));
+    }
+
+    #[test]
+    fn plist_path() {
+        assert_eq!(PLIST_PATH, format!("/Library/LaunchDaemons/{SERVICE_NAME}.plist"))
     }
 }
