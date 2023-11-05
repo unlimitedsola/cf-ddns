@@ -19,11 +19,17 @@ pub struct Config {
     pub v4: bool,
     #[serde(default = "bool_true")]
     pub v6: bool,
+    #[serde(default = "default_interval")]
+    pub interval: u64,
 }
 
 /// Helper function to return true for serde default
 const fn bool_true() -> bool {
     true
+}
+
+const fn default_interval() -> u64 {
+    300
 }
 
 #[derive(Deserialize, Default, Debug, Eq, PartialEq)]
@@ -82,6 +88,7 @@ mod tests {
         assert_eq!(cfg.lookup, LookupConfig::default());
         assert!(cfg.v4);
         assert!(cfg.v6);
+        assert_eq!(cfg.interval, 300)
     }
 
     #[test]
@@ -92,10 +99,12 @@ mod tests {
                 token: test
                 v4: false
                 v6: false
+                interval: 60
             "#
         ).unwrap();
         assert_eq!(cfg.lookup, LookupConfig::default());
         assert!(!cfg.v4);
         assert!(!cfg.v6);
+        assert_eq!(cfg.interval, 60)
     }
 }

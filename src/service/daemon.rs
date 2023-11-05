@@ -13,7 +13,7 @@ impl AppContext {
         where Fut: Future
     {
         let updater = self.new_updater()?;
-        IntervalStream::new(interval(Duration::from_secs(60)))
+        IntervalStream::new(interval(Duration::from_secs(self.config.interval)))
             .take_until(cancel)
             .fold(updater, |mut updater, _| async move {
                 updater.update(None).await;
