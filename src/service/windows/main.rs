@@ -1,4 +1,3 @@
-use std::env::current_exe;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -6,7 +5,7 @@ use clap::Parser;
 use futures::channel::oneshot::Receiver;
 use tracing::{info, instrument};
 
-use crate::AppContext;
+use crate::{AppContext, current_exe};
 use crate::cli::Cli;
 use crate::service::SERVICE_NAME;
 use crate::service::windows::sys::run;

@@ -1,12 +1,13 @@
 use std::collections::HashMap;
-use std::env::current_exe;
 use std::fmt::Debug;
 use std::fs::File;
 use std::iter::repeat;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
+
+use crate::current_exe;
 
 #[derive(Deserialize, Debug)]
 pub struct Config {
@@ -40,16 +41,19 @@ pub enum LookupConfig {
 }
 
 impl Config {
-    pub fn load(path: Option<&PathBuf>) -> Result<Config> {
-        let default_path = Self::default_path()?;
-        let path = path.unwrap_or(&default_path);
-        let file = File::open(path)?;
+    pub fn load() -> Result<Config> {
+        Self::load_from(Self::default_path()?)
+    }
+
+    pub fn load_from<P: AsRef<Path>>(path: P) -> Result<Config> {
+        let file = File::open(path.as_ref())
+            .with_context(|| format!("unable to open config file: {:?}", path.as_ref()))?;
         serde_yaml::from_reader(file)
-            .with_context(|| format!("unable to load config from {:?}", path))
+            .with_context(|| format!("unable to parse config file: {:?}", path.as_ref()))
     }
 
     fn default_path() -> Result<PathBuf> {
-        Ok(current_exe()?.with_file_name("config.yaml"))
+        current_exe().map(|p| p.with_file_name("config.yaml"))
     }
 }
 

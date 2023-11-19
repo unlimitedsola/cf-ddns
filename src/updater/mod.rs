@@ -2,34 +2,29 @@ use std::cell::RefCell;
 use std::net::IpAddr;
 use std::rc::Rc;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use anyhow::Result;
 use futures::future::join_all;
 use futures::join;
 use tracing::{error, info, instrument};
 
 use crate::AppContext;
+use crate::cloudflare::CloudFlare;
 use crate::cloudflare::record::DnsRecord;
 use crate::config::ZoneRecord;
-use crate::lookup::LookupProvider;
+use crate::lookup::{LookupProvider, Provider};
 use crate::updater::cache::IdCache;
 
 mod cache;
 
 pub struct Updater<'a> {
     app: &'a AppContext,
+    lookup: Provider,
+    cf: CloudFlare,
     cache: RefCell<IdCache>,
 }
 
-impl<'a> Updater<'a> {
-    pub fn new(app: &'a AppContext, cache: IdCache) -> Self {
-        Updater {
-            app,
-            cache: RefCell::new(cache),
-        }
-    }
-}
-
+// FIXME: investigate a explicit way to save cache
 impl<'a> Drop for Updater<'a> {
     fn drop(&mut self) {
         if let Err(e) = self.cache.borrow().save() {
@@ -40,7 +35,15 @@ impl<'a> Drop for Updater<'a> {
 
 impl AppContext {
     pub fn new_updater(&self) -> Result<Updater<'_>> {
-        Ok(Updater::new(self, IdCache::load().unwrap_or_default()))
+        let lookup = Provider::new(&self.config.lookup).context("unable to initialize lookup provider")?;
+        let cf = CloudFlare::new(&self.config.token)?;
+        let cache = IdCache::load().unwrap_or_default();
+        Ok(Updater {
+            app: self,
+            lookup,
+            cf,
+            cache: RefCell::new(cache),
+        })
     }
     pub async fn update(&self, ns: Option<&str>) -> Result<()> {
         let mut updater = self.new_updater()?;
@@ -69,7 +72,7 @@ impl<'a> Updater<'a> {
             info!("Skipped IPv4 since it is disabled by config.");
             return;
         }
-        let addr = match self.app.lookup.lookup_v4().await {
+        let addr = match self.lookup.lookup_v4().await {
             Ok(res) => res.into(),
             Err(e) => {
                 error!("Failed to lookup the IPv4 address of the current network: {e}");
@@ -87,7 +90,7 @@ impl<'a> Updater<'a> {
             return;
         }
 
-        let addr = match self.app.lookup.lookup_v6().await {
+        let addr = match self.lookup.lookup_v6().await {
             Ok(res) => res.into(),
             Err(e) => {
                 error!("Failed to lookup the IPv6 address of the current network: {e}");
@@ -129,7 +132,7 @@ impl<'a> Updater<'a> {
                     "Found existing {rec_type} record [{}] for '{}', updating...",
                     rec_id, rec.ns
                 );
-                let resp = self.app.client
+                let resp = self.cf
                     .update_record(&zone_id, rec_id, rec.ns, addr)
                     .await;
                 match resp {
@@ -146,7 +149,7 @@ impl<'a> Updater<'a> {
             }
             None => {
                 info!("Creating {rec_type} record for '{}'", rec.ns);
-                let resp = self.app.client.create_record(&zone_id, rec.ns, addr).await;
+                let resp = self.cf.create_record(&zone_id, rec.ns, addr).await;
                 match resp {
                     Ok(record) => self.update_cache(rec.ns, &record),
                     Err(e) => {
@@ -177,12 +180,12 @@ impl<'a> Updater<'a> {
     }
 
     async fn cache_zones(&self) -> Result<()> {
-        let res = self.app.client.list_zones().await?.into_iter();
+        let res = self.cf.list_zones().await?.into_iter();
         res.for_each(|zone| self.cache.borrow_mut().save_zone(zone.name, zone.id));
         Ok(())
     }
     async fn cache_records(&self, zone_id: &str, ns: &str) -> Result<()> {
-        self.app.client
+        self.cf
             .list_records(zone_id, ns).await?.into_iter()
             .for_each(|rec| self.update_cache(ns, &rec));
         Ok(())

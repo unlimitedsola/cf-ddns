@@ -18,12 +18,12 @@ use crate::cloudflare::zone::{ListZones, Zone};
 pub mod record;
 pub mod zone;
 
-pub struct Client {
+pub struct CloudFlare {
     http: reqwest::Client,
 }
 
 // Constructors
-impl Client {
+impl CloudFlare {
     pub fn new(token: &str) -> Result<Self> {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -32,7 +32,7 @@ impl Client {
         );
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         let http = ClientBuilder::new().default_headers(headers).build()?;
-        Ok(Client { http })
+        Ok(CloudFlare { http })
     }
 }
 
@@ -55,7 +55,7 @@ trait ApiRequest {
 const BASE_URL: &str = "https://api.cloudflare.com/client/v4/"; // trailing slash is required!
 
 // Base exchange implementation
-impl Client {
+impl CloudFlare {
     async fn call<Api>(&self, api: &Api) -> Result<Api::Response>
         where
             Api: ApiRequest,
@@ -94,7 +94,7 @@ async fn extract_response<T>(resp: reqwest::Response) -> Result<T>
 }
 
 // Api wrappers for our actual use cases
-impl Client {
+impl CloudFlare {
     pub async fn list_zones(&self) -> Result<Vec<Zone>> {
         self.call(&ListZones).await
     }

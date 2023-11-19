@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::env::current_exe;
 use std::fs::File;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -10,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cloudflare::record::DnsContent::{A, AAAA};
 use crate::cloudflare::record::DnsRecord;
+use crate::current_exe;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IdCache {
@@ -27,18 +27,16 @@ pub struct RecordIdCache {
 
 impl IdCache {
     fn cache_path() -> Result<PathBuf> {
-        current_exe()
-            .map(|p| p.with_file_name("id_cache.json"))
-            .context("Failed to determine cache file path.")
+        current_exe().map(|p| p.with_file_name("id_cache.json"))
     }
 
     pub fn load() -> Result<IdCache> {
         let file = File::open(Self::cache_path()?)?;
-        serde_json::from_reader(file).context("Failed to read cache file.")
+        serde_json::from_reader(file).context("failed to read cache file")
     }
     pub fn save(&self) -> Result<()> {
         let file = File::create(Self::cache_path()?)?;
-        serde_json::to_writer(file, self).context("Failed to write cache file.")
+        serde_json::to_writer(file, self).context("failed to write cache file")
     }
 
     pub fn get_zone(&self, zone: &str) -> Option<Rc<str>> {

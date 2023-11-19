@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use anyhow::Result;
 use async_trait::async_trait;
 
-use crate::config::{Config, LookupConfig};
+use crate::config::LookupConfig;
 use crate::lookup::icanhazip::ICanHazIp;
 
 mod icanhazip;
@@ -19,8 +19,8 @@ pub enum Provider {
 }
 
 impl Provider {
-    pub fn new(cfg: &Config) -> Result<Self> {
-        match cfg.lookup {
+    pub fn new(cfg: &LookupConfig) -> Result<Self> {
+        match cfg {
             LookupConfig::ICanHazIp => Ok(Provider::ICanHazIp(ICanHazIp::new()?)),
         }
     }
