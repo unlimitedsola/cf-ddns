@@ -13,7 +13,7 @@ description = "DDNS updater for Cloudflare"
 anyhow = "1.0.75"
 async-trait = "0.1.74"
 cfg-if = "1.0.0"
-clap = { version = "4.4.8", features = ["derive"] }
+clap = { version = "4.4.10", features = ["derive"] }
 const_format = "0.2.32"
 futures = "0.3.29"
 reqwest = { version = "0.11.22", features = ["json"] }
