@@ -2,7 +2,6 @@ use std::net::{AddrParseError, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 
 use anyhow::{Context, Result};
-use async_trait::async_trait;
 use reqwest::Client;
 
 use crate::lookup::LookupProvider;
@@ -27,7 +26,6 @@ impl ICanHazIp {
     }
 }
 
-#[async_trait]
 impl LookupProvider for ICanHazIp {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
         self.lookup("https://ipv4.icanhazip.com").await
@@ -36,7 +34,6 @@ impl LookupProvider for ICanHazIp {
         self.lookup("https://ipv6.icanhazip.com").await
     }
 }
-
 
 #[cfg(test)]
 mod tests {
