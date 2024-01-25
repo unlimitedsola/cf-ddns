@@ -44,7 +44,8 @@ unsafe fn current_process_info() -> Result<PROCESS_BASIC_INFORMATION> {
         &mut res as *mut _ as *mut c_void,
         size_of::<PROCESS_BASIC_INFORMATION>() as u32,
         null_mut(),
-    )?;
+    )
+    .ok()?;
     Ok(res)
 }
 
@@ -69,7 +70,7 @@ unsafe fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
             buf_size as u32,
             &mut needed,
         );
-        match res {
+        match res.ok() {
             Ok(_) => {
                 return parse_and_find_system_process(pid, buf.as_mut_ptr());
             }
