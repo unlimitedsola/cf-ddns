@@ -51,7 +51,6 @@ impl IdCache {
         self.zones.insert(zone, id.into());
     }
 
-
     pub fn update_record(&mut self, ns: &str, record: &DnsRecord) {
         if let Some(cache) = self.records.get_mut(ns) {
             cache.update(record)

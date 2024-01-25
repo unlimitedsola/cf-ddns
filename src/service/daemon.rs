@@ -10,7 +10,8 @@ use crate::AppContext;
 
 impl AppContext {
     pub async fn run_service<Fut>(&self, cancel: Fut) -> Result<()>
-        where Fut: Future
+    where
+        Fut: Future,
     {
         let updater = self.new_updater()?;
         IntervalStream::new(interval(Duration::from_secs(self.config.interval)))

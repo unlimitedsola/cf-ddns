@@ -7,9 +7,7 @@ use windows::core::PWSTR;
 use windows::Wdk::System::SystemInformation::{NtQuerySystemInformation, SystemProcessInformation};
 use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
 use windows::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
-use windows::Win32::System::Threading::{
-    GetCurrentProcess, PROCESS_BASIC_INFORMATION,
-};
+use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use windows::Win32::System::WindowsProgramming::SYSTEM_PROCESS_INFORMATION;
 
 /// Convert Windows service entry arguments to a Rust `Vec<String>`.
@@ -31,7 +29,9 @@ pub fn is_in_windows_service() -> Result<bool> {
         let parent_process = find_system_process(cur_process.InheritedFromUniqueProcessId)?;
 
         parent_process.session_id == 0
-            && parent_process.image_name.eq_ignore_ascii_case("services.exe")
+            && parent_process
+                .image_name
+                .eq_ignore_ascii_case("services.exe")
     };
     Ok(is_in_service)
 }

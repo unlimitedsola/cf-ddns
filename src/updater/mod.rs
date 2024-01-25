@@ -2,18 +2,18 @@ use std::cell::RefCell;
 use std::net::IpAddr;
 use std::rc::Rc;
 
-use anyhow::{anyhow, Context};
 use anyhow::Result;
+use anyhow::{anyhow, Context};
 use futures::future::join_all;
 use futures::join;
 use tracing::{error, info, instrument};
 
-use crate::AppContext;
-use crate::cloudflare::CloudFlare;
 use crate::cloudflare::record::DnsRecord;
+use crate::cloudflare::CloudFlare;
 use crate::config::ZoneRecord;
 use crate::lookup::{LookupProvider, Provider};
 use crate::updater::cache::IdCache;
+use crate::AppContext;
 
 mod cache;
 
@@ -35,7 +35,8 @@ impl<'a> Drop for Updater<'a> {
 
 impl AppContext {
     pub fn new_updater(&self) -> Result<Updater<'_>> {
-        let lookup = Provider::new(&self.config.lookup).context("unable to initialize lookup provider")?;
+        let lookup =
+            Provider::new(&self.config.lookup).context("unable to initialize lookup provider")?;
         let cf = CloudFlare::new(&self.config.token)?;
         let cache = IdCache::load().unwrap_or_default();
         Ok(Updater {
@@ -132,9 +133,7 @@ impl<'a> Updater<'a> {
                     "Found existing {rec_type} record [{}] for '{}', updating...",
                     rec_id, rec.ns
                 );
-                let resp = self.cf
-                    .update_record(&zone_id, rec_id, rec.ns, addr)
-                    .await;
+                let resp = self.cf.update_record(&zone_id, rec_id, rec.ns, addr).await;
                 match resp {
                     Ok(record) => {
                         info!(
@@ -163,7 +162,8 @@ impl<'a> Updater<'a> {
         if self.cache.borrow().get_zone(zone).is_none() {
             self.cache_zones().await?;
         }
-        self.cache.borrow()
+        self.cache
+            .borrow()
             .get_zone(zone)
             .ok_or_else(|| anyhow!("Cannot find zone: {zone}"))
     }
@@ -186,7 +186,9 @@ impl<'a> Updater<'a> {
     }
     async fn cache_records(&self, zone_id: &str, ns: &str) -> Result<()> {
         self.cf
-            .list_records(zone_id, ns).await?.into_iter()
+            .list_records(zone_id, ns)
+            .await?
+            .into_iter()
             .for_each(|rec| self.update_cache(ns, &rec));
         Ok(())
     }

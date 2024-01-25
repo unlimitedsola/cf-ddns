@@ -20,11 +20,11 @@ pub struct AppContext {
 
 impl AppContext {
     pub fn new(cli: Cli) -> Result<Self> {
-        let config = cli.config.as_ref().map_or_else(Config::load, Config::load_from)?;
-        Ok(AppContext {
-            cli,
-            config,
-        })
+        let config = cli
+            .config
+            .as_ref()
+            .map_or_else(Config::load, Config::load_from)?;
+        Ok(AppContext { cli, config })
     }
 }
 

@@ -4,8 +4,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
-use crate::AppContext;
 use crate::cli::Command::{Service, Update};
+use crate::AppContext;
 
 #[derive(Debug, Parser)]
 #[command(name = "cf-ddns")]

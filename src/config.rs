@@ -87,8 +87,9 @@ mod tests {
     fn minimal() {
         let cfg: Config = serde_yaml::from_str(
             // language=yaml
-            "token: test"
-        ).unwrap();
+            "token: test",
+        )
+        .unwrap();
         assert_eq!(cfg.lookup, LookupConfig::default());
         assert!(cfg.v4);
         assert!(cfg.v6);
@@ -104,8 +105,9 @@ mod tests {
                 v4: false
                 v6: false
                 interval: 60
-            "#
-        ).unwrap();
+            "#,
+        )
+        .unwrap();
         assert_eq!(cfg.lookup, LookupConfig::default());
         assert!(!cfg.v4);
         assert!(!cfg.v6);

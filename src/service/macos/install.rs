@@ -40,7 +40,9 @@ pub fn install() -> Result<()> {
 
     let cfg = LaunchdConfig {
         program_arguments: Box::new([
-            current_exe.to_str().context("unable to get executable path")?,
+            current_exe
+                .to_str()
+                .context("unable to get executable path")?,
             "service",
             "run",
         ]),
@@ -96,8 +98,10 @@ mod tests {
         let mut buf = vec![];
         plist::to_writer_xml(&mut buf, &cfg).unwrap();
         let xml = String::from_utf8(buf).unwrap();
-        assert_eq!(xml, format!(
-            r#"<?xml version="1.0" encoding="UTF-8"?>
+        assert_eq!(
+            xml,
+            format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -113,11 +117,16 @@ mod tests {
 	<key>RunAtLoad</key>
 	<true/>
 </dict>
-</plist>"#));
+</plist>"#
+            )
+        );
     }
 
     #[test]
     fn plist_path() {
-        assert_eq!(PLIST_PATH, format!("/Library/LaunchDaemons/{SERVICE_NAME}.plist"))
+        assert_eq!(
+            PLIST_PATH,
+            format!("/Library/LaunchDaemons/{SERVICE_NAME}.plist")
+        )
     }
 }

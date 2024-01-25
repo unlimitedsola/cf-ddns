@@ -5,10 +5,10 @@ use clap::Parser;
 use futures::channel::oneshot::Receiver;
 use tracing::{info, instrument};
 
-use crate::{AppContext, current_exe};
 use crate::cli::Cli;
-use crate::service::SERVICE_NAME;
 use crate::service::windows::sys::run;
+use crate::service::SERVICE_NAME;
+use crate::{current_exe, AppContext};
 
 async fn service_main_async(args: Vec<String>, cancel: Receiver<()>) -> Result<()> {
     let cli = Cli::try_parse_from(args)?;

@@ -18,7 +18,7 @@ impl ICanHazIp {
 }
 
 impl ICanHazIp {
-    async fn lookup<T: FromStr<Err=AddrParseError>>(&self, url: &str) -> Result<T> {
+    async fn lookup<T: FromStr<Err = AddrParseError>>(&self, url: &str) -> Result<T> {
         let body = self.client.get(url).send().await?.text().await?;
         body.trim() // ends with \n
             .parse()
