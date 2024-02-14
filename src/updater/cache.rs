@@ -51,7 +51,7 @@ impl IdCache {
         self.zones.insert(zone, id.into());
     }
 
-    pub fn update_record(&mut self, ns: &str, record: &DnsRecord) {
+    pub fn update_record(&mut self, ns: &str, record: DnsRecord) {
         if let Some(cache) = self.records.get_mut(ns) {
             cache.update(record)
         } else {
@@ -70,10 +70,10 @@ impl RecordIdCache {
         }
     }
 
-    pub fn update(&mut self, record: &DnsRecord) {
+    pub fn update(&mut self, record: DnsRecord) {
         match record.content {
-            A { .. } => self.v4 = Some(record.id.as_str().into()),
-            AAAA { .. } => self.v6 = Some(record.id.as_str().into()),
+            A { .. } => self.v4 = Some(record.id.into()),
+            AAAA { .. } => self.v6 = Some(record.id.into()),
             _ => {}
         }
     }

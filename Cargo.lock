@@ -155,6 +155,7 @@ dependencies = [
  "clap",
  "const_format",
  "futures",
+ "parking_lot",
  "plist",
  "reqwest",
  "serde",
