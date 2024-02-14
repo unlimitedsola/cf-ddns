@@ -1,6 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use anyhow::{Context, Result};
+use clap::Subcommand;
 use tokio::signal::ctrl_c;
 
 use crate::cli::ServiceCommand;
@@ -8,6 +9,13 @@ use crate::service::macos::install::{install, uninstall};
 use crate::AppContext;
 
 mod install;
+
+#[derive(Debug, Subcommand, Clone)]
+pub enum ServiceCommand {
+    Install,
+    Uninstall,
+    Run,
+}
 
 impl AppContext {
     pub async fn run_service_command(&self, command: &ServiceCommand) -> Result<()> {

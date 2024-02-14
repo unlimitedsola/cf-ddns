@@ -4,7 +4,8 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::instrument;
 
-use crate::cli::Command::{Service, Update};
+#[cfg(feature = "service")]
+use crate::service::ServiceCommand;
 use crate::AppContext;
 
 #[derive(Debug, Parser)]
@@ -23,20 +24,9 @@ pub enum Command {
     Update {
         ns: Option<String>,
     },
-    Service {
-        #[command(subcommand)]
-        command: ServiceCommand,
-    },
-}
-
-#[derive(Debug, Subcommand, Clone)]
-pub enum ServiceCommand {
-    Install,
-    Uninstall,
-    Start,
-    Stop,
-    Run,
-    Debug,
+    #[cfg(feature = "service")]
+    #[command(subcommand)]
+    Service(ServiceCommand),
 }
 
 impl AppContext {
@@ -45,8 +35,9 @@ impl AppContext {
         match self.cli.command.clone() {
             None => self.update(None).await?,
             Some(cmd) => match cmd {
-                Update { ns } => self.update(ns.as_deref()).await?,
-                Service { command } => self.run_service_command(&command).await?,
+                Command::Update { ns } => self.update(ns.as_deref()).await?,
+                #[cfg(feature = "service")]
+                Command::Service(command) => self.run_service_command(&command).await?,
             },
         }
         Ok(())

@@ -30,7 +30,7 @@ impl AppContext {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    #[cfg(windows)]
+    #[cfg(all(windows, feature = "service"))]
     if service::is_in_windows_service()? {
         return service::run_as_service();
     }
