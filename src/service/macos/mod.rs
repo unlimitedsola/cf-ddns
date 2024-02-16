@@ -10,6 +10,8 @@ use crate::AppContext;
 
 mod install;
 
+const SERVICE_NAME: &str = "cf-ddns";
+
 #[derive(Debug, Subcommand, Clone)]
 pub enum ServiceCommand {
     Install,

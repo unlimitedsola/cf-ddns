@@ -6,7 +6,7 @@ use anyhow::{bail, Context, Result};
 use const_format::formatcp;
 use serde::Serialize;
 
-use crate::service::SERVICE_NAME;
+use crate::service::macos::SERVICE_NAME;
 
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -87,8 +87,6 @@ fn launchctl(args: &[&str]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn plist_deserialize() {
         let cfg = LaunchdConfig {

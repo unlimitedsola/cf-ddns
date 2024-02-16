@@ -1,10 +1,9 @@
 //! A crude wrapper to make service entry point more Rustic.
 
-use std::sync::{Arc, Mutex};
-
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use futures::channel::oneshot;
 use futures::channel::oneshot::{Receiver, Sender};
+use parking_lot::Mutex;
 use tracing::{error, info};
 use windows::core::{HSTRING, PWSTR};
 use windows::Win32::System::Services;
@@ -15,29 +14,30 @@ use windows::Win32::System::Services::{
 use crate::service::windows::sys::control::{register, start};
 use crate::service::windows::sys::helper::parse_service_entry_arguments;
 
-static SERVICE: Mutex<RunningService> = Mutex::new(RunningService {
-    name: None,
-    entry: None,
-    cancel: None,
-});
+static SERVICE: Mutex<Option<RunningService>> = Mutex::new(None);
 
-#[derive(Default)]
 struct RunningService {
-    name: Option<Arc<HSTRING>>,
-    entry: Option<Arc<ServiceMain>>,
+    name: HSTRING,
+    entry: ServiceMain,
     cancel: Option<Sender<()>>,
 }
 
 type ServiceMain = fn(args: Vec<String>, cancel: Receiver<()>) -> Result<()>;
 
 pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
-    let name = {
-        let name = Arc::new(name.into());
-        let mut service = SERVICE.lock().unwrap();
-        service.name = Some(Arc::clone(&name));
-        service.entry = Some(Arc::new(entry));
-        name
-    };
+    let name = HSTRING::from(name);
+    {
+        let mut svc = SERVICE.lock();
+        if let Some(ref svc) = *svc {
+            bail!("Service '{}' is already running.", svc.name);
+        }
+
+        *svc = Some(RunningService {
+            name: name.clone(),
+            entry,
+            cancel: None,
+        });
+    }
     start(&name, ffi_service_entry)
 }
 
@@ -49,18 +49,20 @@ pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
 }
 
 fn run_service(argc: u32, argv: *mut PWSTR) -> Result<()> {
+    let (name, entry, cancel) = {
+        let mut svc = SERVICE.lock();
+        match *svc {
+            Some(ref mut svc) => {
+                let (tx, rx) = oneshot::channel::<()>();
+                svc.cancel = Some(tx);
+                (svc.name.clone(), svc.entry, rx)
+            }
+            None => bail!("Service is not running."),
+        }
+    };
     let mut args = unsafe { parse_service_entry_arguments(argc, argv) };
     // Remove the first argument, which is the executable name.
     args.remove(0);
-    let (tx, rx) = oneshot::channel::<()>();
-    let (name, entry) = {
-        let mut service = SERVICE.lock().unwrap();
-        service.cancel = Some(tx);
-        (
-            service.name.as_ref().unwrap().clone(),
-            service.entry.as_ref().unwrap().clone(),
-        )
-    };
     let handle = register(&name, ffi_control_handler).context("registering service handle")?;
     handle
         .set_status(SERVICE_STATUS {
@@ -70,7 +72,7 @@ fn run_service(argc: u32, argv: *mut PWSTR) -> Result<()> {
             ..SERVICE_STATUS::default()
         })
         .context("updating service status to RUNNING")?;
-    let result = entry(args, rx);
+    let result = entry(args, cancel);
     handle
         .set_status(SERVICE_STATUS {
             dwServiceType: SERVICE_WIN32_OWN_PROCESS,
@@ -86,7 +88,11 @@ pub extern "system" fn ffi_control_handler(control: u32) {
     info!("Received service control signal.");
     if control == Services::SERVICE_CONTROL_STOP {
         info!("Sending stop signal to service worker...");
-        let tx = SERVICE.lock().unwrap().cancel.take().unwrap();
-        tx.send(()).unwrap();
+        let cancel = SERVICE.lock().as_mut().and_then(|svc| svc.cancel.take());
+        if let Some(cancel) = cancel {
+            if let Err(e) = cancel.send(()) {
+                error!("Failed to send stop signal to service worker: {e:?}");
+            }
+        }
     }
 }

@@ -13,6 +13,12 @@ mod install;
 mod main;
 mod sys;
 
+const SERVICE_NAME: &str = "cf-ddns";
+const SERVICE_DISPLAY_NAME: &str = "Cloudflare DDNS";
+
+const SERVICE_DESCRIPTION: &str =
+    "Updates Cloudflare DNS records with the current public IP address.";
+
 #[derive(Debug, Subcommand, Clone)]
 pub enum ServiceCommand {
     Install,

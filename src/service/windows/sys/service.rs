@@ -26,6 +26,8 @@ impl Service {
                 self.handle.raw_handle(),
                 SERVICE_CONFIG_DESCRIPTION,
                 Some(&SERVICE_DESCRIPTIONW {
+                    // FIXME: this is technically unsafe due to the temporary object HSTRING
+                    //        could be dropped before the function call
                     lpDescription: PWSTR::from_raw(HSTRING::from(desc).as_ptr() as *mut _),
                 } as *const _ as *mut _),
             )?;

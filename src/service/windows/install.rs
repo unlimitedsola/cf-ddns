@@ -3,7 +3,7 @@ use windows::Win32::System::Services::SERVICE_AUTO_START;
 
 use crate::current_exe;
 use crate::service::windows::sys::{ServiceCreateConfig, ServiceManager};
-use crate::service::{SERVICE_DESCRIPTION, SERVICE_DISPLAY_NAME, SERVICE_NAME};
+use crate::service::windows::{SERVICE_DESCRIPTION, SERVICE_DISPLAY_NAME, SERVICE_NAME};
 
 pub fn install() -> Result<()> {
     let mgr = ServiceManager::local_computer()?;
