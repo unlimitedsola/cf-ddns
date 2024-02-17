@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::Parser;
 use futures::channel::oneshot::Receiver;
 use tracing::{info, instrument};
+use tracing_appender::rolling::RollingFileAppender;
 
 use crate::cli::Cli;
 use crate::service::windows::sys::run;
@@ -11,8 +12,12 @@ use crate::service::windows::SERVICE_NAME;
 use crate::{current_exe, AppContext};
 
 pub fn run_as_service() -> Result<()> {
-    let file_appender =
-        tracing_appender::rolling::daily(current_exe()?.parent().unwrap(), "cf-ddns.log");
+    let file_appender = RollingFileAppender::builder()
+        .rotation(tracing_appender::rolling::Rotation::DAILY)
+        .filename_prefix("cf-ddns")
+        .filename_suffix("log")
+        .max_log_files(10)
+        .build(current_exe()?.parent().unwrap())?;
     tracing_subscriber::fmt()
         .with_ansi(false)
         .with_writer(file_appender)
