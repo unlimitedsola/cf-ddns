@@ -1,0 +1,12 @@
+[Unit]
+Description={desc}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart={exec} service run
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
