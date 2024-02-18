@@ -1,5 +1,4 @@
 use std::fs;
-use std::io::Write;
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
