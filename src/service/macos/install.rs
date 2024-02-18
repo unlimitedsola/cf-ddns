@@ -3,7 +3,7 @@ use std::fs::remove_file;
 use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context, Result};
-use const_format::formatcp;
+use const_format::concatcp;
 use serde::Serialize;
 
 use crate::service::macos::SERVICE_NAME;
@@ -32,11 +32,11 @@ impl Default for LaunchdConfig<'_> {
     }
 }
 
-const PLIST_PATH: &str = formatcp!("/Library/LaunchDaemons/{SERVICE_NAME}.plist");
+const PLIST_PATH: &str = concatcp!("/Library/LaunchDaemons/", SERVICE_NAME, ".plist");
 
 pub fn install() -> Result<()> {
     let current_exe = current_exe().context("unable to get executable path")?;
-    let log_path = current_exe.with_file_name(formatcp!("{SERVICE_NAME}.log"));
+    let log_path = current_exe.with_file_name(concatcp!(SERVICE_NAME, ".log"));
 
     let cfg = LaunchdConfig {
         program_arguments: Box::new([
@@ -87,6 +87,8 @@ fn launchctl(args: &[&str]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn plist_deserialize() {
         let cfg = LaunchdConfig {

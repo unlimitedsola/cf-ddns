@@ -2,12 +2,12 @@ use std::fs;
 use std::io::Write;
 
 use anyhow::{Context, Result};
-use const_format::formatcp;
+use const_format::concatcp;
 
 use crate::current_exe;
 use crate::service::linux::{SERVICE_DESCRIPTION, SERVICE_NAME};
 
-const UNIT_FILE: &str = formatcp!("/etc/systemd/system/{name}.service", name = SERVICE_NAME);
+const UNIT_FILE: &str = concatcp!("/etc/systemd/system/", SERVICE_NAME, ".service");
 
 pub fn install() -> Result<()> {
     let exec = current_exe()?;
