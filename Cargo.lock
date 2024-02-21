@@ -151,7 +151,6 @@ name = "cf-ddns"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cfg-if",
  "clap",
  "const_format",
  "futures",
