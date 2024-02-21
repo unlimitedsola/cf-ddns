@@ -24,7 +24,7 @@ pub fn install() -> Result<()> {
 }
 
 pub fn uninstall() -> Result<()> {
-    launchctl(&["unload", PLIST_PATH])?;
+    launchctl(&["unload", "-w", PLIST_PATH])?;
     remove_file(PLIST_PATH).context("unable to remove service file")
 }
 
