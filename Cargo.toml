@@ -29,7 +29,7 @@ tracing-subscriber = "0.3.17"
 
 [features]
 default = ["service"]
-service = ["dep:windows", "dep:plist"]
+service = ["dep:windows"]
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.52.0"
@@ -44,6 +44,3 @@ features = [
     "Wdk_System_Threading",
     "Wdk_System_SystemInformation"
 ]
-
-[target.'cfg(target_os = "macos")'.dependencies]
-plist = { version = "1.5.1", optional = true }

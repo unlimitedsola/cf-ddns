@@ -1,36 +1,12 @@
 use std::env::current_exe;
+use std::fs;
 use std::fs::remove_file;
 use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context, Result};
 use const_format::concatcp;
-use serde::Serialize;
 
 use crate::service::macos::SERVICE_NAME;
-
-#[derive(Serialize)]
-#[serde(rename_all = "PascalCase")]
-struct LaunchdConfig<'a> {
-    label: &'a str,
-    program_arguments: Box<[&'a str]>,
-    keep_alive: bool,
-    run_at_load: bool,
-    standard_out_path: Option<&'a str>,
-    standard_error_path: Option<&'a str>,
-}
-
-impl Default for LaunchdConfig<'_> {
-    fn default() -> Self {
-        LaunchdConfig {
-            label: SERVICE_NAME,
-            program_arguments: Box::new([]),
-            keep_alive: true,
-            run_at_load: true,
-            standard_out_path: None,
-            standard_error_path: None,
-        }
-    }
-}
 
 const PLIST_PATH: &str = concatcp!("/Library/LaunchDaemons/", SERVICE_NAME, ".plist");
 
@@ -38,25 +14,27 @@ pub fn install() -> Result<()> {
     let current_exe = current_exe().context("unable to get executable path")?;
     let log_path = current_exe.with_file_name(concatcp!(SERVICE_NAME, ".log"));
 
-    let cfg = LaunchdConfig {
-        program_arguments: Box::new([
-            current_exe
-                .to_str()
-                .context("unable to get executable path")?,
-            "service",
-            "run",
-        ]),
-        standard_out_path: log_path.to_str(),
-        standard_error_path: log_path.to_str(),
-        ..Default::default()
-    };
-    plist::to_file_xml(PLIST_PATH, &cfg).context("unable to write service file")?;
+    let plist = gen_plist(
+        current_exe.to_str().context("path is not valid utf-8")?,
+        log_path.to_str().context("path is not valid utf-8")?,
+    );
+
+    fs::write(PLIST_PATH, plist).context("unable to write service file")?;
     launchctl(&["load", "-w", PLIST_PATH])
 }
 
 pub fn uninstall() -> Result<()> {
     launchctl(&["unload", PLIST_PATH])?;
     remove_file(PLIST_PATH).context("unable to remove service file")
+}
+
+fn gen_plist(exec: &str, log: &str) -> String {
+    format!(
+        include_str!("launchd.plist"),
+        label = SERVICE_NAME,
+        exec = exec,
+        log = log
+    )
 }
 
 const LAUNCHCTL: &str = "launchctl";
@@ -90,43 +68,40 @@ mod tests {
     use super::*;
 
     #[test]
-    fn plist_deserialize() {
-        let cfg = LaunchdConfig {
-            program_arguments: Box::new(["test", "test"]),
-            ..Default::default()
-        };
-        let mut buf = vec![];
-        plist::to_writer_xml(&mut buf, &cfg).unwrap();
-        let xml = String::from_utf8(buf).unwrap();
+    fn plist_gen() {
+        let plist = gen_plist("/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log");
         assert_eq!(
-            xml,
-            format!(
-                r#"<?xml version="1.0" encoding="UTF-8"?>
+            plist,
+            r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>{SERVICE_NAME}</string>
+	<string>cf-ddns</string>
+
 	<key>ProgramArguments</key>
 	<array>
-		<string>test</string>
-		<string>test</string>
+		<string>/usr/local/bin/cf-ddns</string>
+		<string>service</string>
+		<string>run</string>
 	</array>
-	<key>KeepAlive</key>
-	<true/>
+
+    <key>KeepAlive</key>
+    <dict>
+      <key>NetworkState</key>
+      <true/>
+    </dict>
+
 	<key>RunAtLoad</key>
 	<true/>
-</dict>
-</plist>"#
-            )
-        );
-    }
 
-    #[test]
-    fn plist_path() {
-        assert_eq!(
-            PLIST_PATH,
-            format!("/Library/LaunchDaemons/{SERVICE_NAME}.plist")
-        )
+    <key>StandardOutPath</key>
+    <string>/var/log/cf-ddns.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/cf-ddns.log</string>
+</dict>
+</plist>
+"#
+        );
     }
 }
