@@ -1,11 +1,10 @@
 use std::net::IpAddr;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use anyhow::Result;
 use anyhow::{anyhow, Context};
 use futures::future::join_all;
 use futures::join;
-use parking_lot::RwLock;
 use tracing::{error, info, instrument};
 
 use crate::cloudflare::record::DnsRecord;
@@ -21,16 +20,6 @@ pub struct Updater<'a> {
     app: &'a AppContext,
     lookup: Provider,
     cf: CloudFlare,
-    cache: RwLock<IdCache>,
-}
-
-// FIXME: investigate a explicit way to save cache
-impl<'a> Drop for Updater<'a> {
-    fn drop(&mut self) {
-        if let Err(e) = self.cache.read().save() {
-            error!("Failed to save id cache: {e}");
-        }
-    }
 }
 
 impl AppContext {
@@ -38,12 +27,10 @@ impl AppContext {
         let lookup =
             Provider::new(&self.config.lookup).context("unable to initialize lookup provider")?;
         let cf = CloudFlare::new(&self.config.token)?;
-        let cache = IdCache::load().unwrap_or_default();
         Ok(Updater {
             app: self,
             lookup,
             cf,
-            cache: RwLock::new(cache),
         })
     }
     pub async fn update(&self, ns: Option<&str>) -> Result<()> {
@@ -158,41 +145,45 @@ impl<'a> Updater<'a> {
             }
         }
     }
-    async fn zone_id(&self, zone: &str) -> Result<Rc<str>> {
-        if self.cache.read().get_zone(zone).is_none() {
-            self.cache_zones().await?;
+    async fn zone_id(&self, zone: &str) -> Result<Arc<str>> {
+        let res = IdCache::read().get_zone(zone);
+        match res {
+            Some(id) => return Ok(id),
+            None => self.cache_zones().await?,
         }
-        self.cache
-            .read()
+        IdCache::read()
             .get_zone(zone)
             .ok_or_else(|| anyhow!("Cannot find zone: {zone}"))
     }
 
-    async fn record_id(&self, zone_id: &str, ns: &str, addr: &IpAddr) -> Result<Option<Rc<str>>> {
-        if self.cache.read().get_record(ns, addr).is_none() {
+    async fn record_id(&self, zone_id: &str, ns: &str, addr: &IpAddr) -> Result<Option<Arc<str>>> {
+        if IdCache::read().get_record(ns, addr).is_none() {
             self.cache_records(zone_id, ns).await?;
         }
-        Ok(self.cache.read().get_record(ns, addr))
+        Ok(IdCache::read().get_record(ns, addr))
     }
 
     fn update_cache(&self, ns: &str, record: DnsRecord) {
-        self.cache.write().update_record(ns, record);
+        let mut cache = IdCache::write();
+        cache.update_record(ns, record);
+        // FIXME: error handling
+        cache.save().unwrap();
     }
 
     async fn cache_zones(&self) -> Result<()> {
-        self.cf
-            .list_zones()
-            .await?
+        let zones = self.cf.list_zones().await?;
+        let mut cache = IdCache::write();
+        zones
             .into_iter()
-            .for_each(|zone| self.cache.write().save_zone(zone.name, zone.id));
-        Ok(())
+            .for_each(|zone| cache.save_zone(zone.name, zone.id));
+        cache.save()
     }
     async fn cache_records(&self, zone_id: &str, ns: &str) -> Result<()> {
-        self.cf
-            .list_records(zone_id, ns)
-            .await?
+        let records = self.cf.list_records(zone_id, ns).await?;
+        let mut cache = IdCache::write();
+        records
             .into_iter()
-            .for_each(|rec| self.update_cache(ns, rec));
-        Ok(())
+            .for_each(|rec| cache.update_record(ns, rec));
+        cache.save()
     }
 }
