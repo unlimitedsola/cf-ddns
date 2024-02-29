@@ -42,13 +42,11 @@ pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
 }
 
 pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
-    let r = run_service(argc, argv);
-    if let Err(e) = r {
-        error!("Error occurred while starting the service: {e:#?}");
-    }
+    let args = unsafe { parse_service_entry_arguments(argc, argv) };
+    run_service(args).unwrap()
 }
 
-fn run_service(argc: u32, argv: *mut PWSTR) -> Result<()> {
+fn run_service(args: Vec<String>) -> Result<()> {
     let (name, entry, cancel) = {
         let mut svc = SERVICE.lock();
         match *svc {
@@ -60,9 +58,6 @@ fn run_service(argc: u32, argv: *mut PWSTR) -> Result<()> {
             None => bail!("Service is not running."),
         }
     };
-    let mut args = unsafe { parse_service_entry_arguments(argc, argv) };
-    // Remove the first argument, which is the executable name.
-    args.remove(0);
     let handle = register(&name, ffi_control_handler).context("registering service handle")?;
     handle
         .set_status(SERVICE_STATUS {
