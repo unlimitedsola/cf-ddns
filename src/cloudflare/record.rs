@@ -3,11 +3,12 @@
 use std::net::IpAddr::{V4, V6};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use concat_string::concat_string;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
 use crate::cloudflare::record::DnsContent::{A, AAAA};
-use crate::cloudflare::ApiRequest;
+use crate::cloudflare::{ApiRequest, BASE_URL};
 
 #[derive(Deserialize, Debug)]
 pub struct DnsRecord {
@@ -51,25 +52,25 @@ impl From<IpAddr> for DnsContent {
 #[derive(Debug)]
 pub struct ListDnsRecords<'a> {
     pub zone_identifier: &'a str,
-    pub params: ListDnsRecordsParams,
+    pub params: ListDnsRecordsParams<'a>,
 }
 
 #[serde_with::skip_serializing_none]
 #[derive(Serialize, Clone, Debug, Default)]
-pub struct ListDnsRecordsParams {
+pub struct ListDnsRecordsParams<'a> {
     #[serde(flatten)]
     pub record_type: Option<DnsContent>,
-    pub name: Option<String>,
+    pub name: Option<&'a str>,
     pub page: Option<u32>,
     pub per_page: Option<u32>,
 }
 
 impl<'a> ApiRequest for ListDnsRecords<'a> {
     type Request = ();
-    type Query = ListDnsRecordsParams;
+    type Query = ListDnsRecordsParams<'a>;
     type Response = Vec<DnsRecord>;
-    fn path(&self) -> String {
-        format!("zones/{}/dns_records", self.zone_identifier)
+    fn url(&self) -> String {
+        concat_string!(BASE_URL, "/zones/", self.zone_identifier, "/dns_records")
     }
     fn query(&self) -> Option<&Self::Query> {
         Some(&self.params)
@@ -109,8 +110,8 @@ impl<'a> ApiRequest for CreateDnsRecord<'a> {
     fn method(&self) -> Method {
         Method::POST
     }
-    fn path(&self) -> String {
-        format!("zones/{}/dns_records", self.zone_identifier)
+    fn url(&self) -> String {
+        concat_string!(BASE_URL, "/zones/", self.zone_identifier, "/dns_records")
     }
     fn body(&self) -> Option<&Self::Request> {
         Some(&self.params)
@@ -150,10 +151,13 @@ impl<'a> ApiRequest for UpdateDnsRecord<'a> {
     fn method(&self) -> Method {
         Method::PATCH
     }
-    fn path(&self) -> String {
-        format!(
-            "zones/{}/dns_records/{}",
-            self.zone_identifier, self.identifier
+    fn url(&self) -> String {
+        concat_string!(
+            BASE_URL,
+            "/zones/",
+            self.zone_identifier,
+            "/dns_records/",
+            self.identifier
         )
     }
     fn body(&self) -> Option<&Self::Request> {

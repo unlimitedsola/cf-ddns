@@ -1,9 +1,9 @@
 //! Partial implementation, only contains fields that we'll use
 
-use reqwest::Method;
+use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
-use crate::cloudflare::ApiRequest;
+use crate::cloudflare::{ApiRequest, BASE_URL};
 
 #[derive(Deserialize, Debug)]
 pub struct Zone {
@@ -21,10 +21,7 @@ impl ApiRequest for ListZones {
     type Query = ();
     type Response = Vec<Zone>;
 
-    fn method(&self) -> Method {
-        Method::GET
-    }
-    fn path(&self) -> String {
-        "zones".to_string()
+    fn url(&self) -> &str {
+        concatcp!(BASE_URL, "/zones")
     }
 }

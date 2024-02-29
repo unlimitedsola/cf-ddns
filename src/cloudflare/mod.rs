@@ -5,7 +5,7 @@ use std::net::IpAddr;
 use anyhow::{Error, Result};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::Method;
-use reqwest::{ClientBuilder, Url};
+use reqwest::{ClientBuilder, IntoUrl};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -40,10 +40,11 @@ trait ApiRequest {
     type Request: Serialize;
     type Query: Serialize;
     type Response: DeserializeOwned;
+
     fn method(&self) -> Method {
         Method::GET
     }
-    fn path(&self) -> String;
+    fn url(&self) -> impl IntoUrl;
     fn query(&self) -> Option<&Self::Query> {
         None
     }
@@ -52,7 +53,7 @@ trait ApiRequest {
     }
 }
 
-const BASE_URL: &str = "https://api.cloudflare.com/client/v4/"; // trailing slash is required!
+const BASE_URL: &str = "https://api.cloudflare.com/client/v4"; // no trailing slash
 
 // Base exchange implementation
 impl CloudFlare {
@@ -62,7 +63,7 @@ impl CloudFlare {
     {
         let mut request = self
             .http
-            .request(api.method(), Url::try_from(BASE_URL)?.join(&api.path())?)
+            .request(api.method(), api.url())
             .query(&api.query());
 
         if let Some(body) = api.body() {
@@ -102,7 +103,7 @@ impl CloudFlare {
         let req = ListDnsRecords {
             zone_identifier: zone_id,
             params: ListDnsRecordsParams {
-                name: Some(ns.to_owned()),
+                name: Some(ns),
                 ..Default::default()
             },
         };
