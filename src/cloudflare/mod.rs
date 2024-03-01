@@ -2,7 +2,8 @@
 
 use std::net::IpAddr;
 
-use anyhow::{Error, Result};
+use anyhow::{bail, Result};
+use concat_string::concat_string;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::Method;
 use reqwest::{ClientBuilder, IntoUrl};
@@ -25,10 +26,10 @@ pub struct CloudFlare {
 // Constructors
 impl CloudFlare {
     pub fn new(token: &str) -> Result<Self> {
-        let mut headers = HeaderMap::new();
+        let mut headers = HeaderMap::with_capacity(2);
         headers.insert(
             AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", token))?,
+            HeaderValue::try_from(concat_string!("Bearer ", token))?,
         );
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         let http = ClientBuilder::new().default_headers(headers).build()?;
@@ -86,11 +87,11 @@ where
     if status.is_success() {
         Ok(resp.json::<Response<T>>().await?.result)
     } else {
-        Err(Error::msg(format!(
+        bail!(
             "Error from Cloudflare API, status: {}, response: {}",
             status,
-            resp.text().await?
-        )))
+            resp.text().await?,
+        )
     }
 }
 
