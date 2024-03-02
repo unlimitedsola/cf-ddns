@@ -42,7 +42,7 @@ pub enum LookupConfig {
 
 impl Config {
     pub fn load() -> Result<Config> {
-        Self::load_from(Self::default_path()?)
+        Self::load_from(Self::default_path())
     }
 
     pub fn load_from<P: AsRef<Path>>(path: P) -> Result<Config> {
@@ -52,8 +52,8 @@ impl Config {
             .with_context(|| format!("unable to parse config file: {:?}", path.as_ref()))
     }
 
-    fn default_path() -> Result<PathBuf> {
-        current_exe().map(|p| p.with_file_name("config.yaml"))
+    fn default_path() -> PathBuf {
+        current_exe().with_file_name("config.yaml")
     }
 }
 

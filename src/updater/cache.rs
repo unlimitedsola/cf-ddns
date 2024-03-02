@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::File;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use anyhow::{Context, Result};
@@ -44,26 +44,27 @@ impl RecordIdCache {
 }
 
 impl IdCache {
-    fn cache_path() -> Result<PathBuf> {
-        current_exe().map(|p| p.with_file_name("id_cache.json"))
+    fn cache_path() -> &'static Path {
+        static PATH: OnceLock<PathBuf> = OnceLock::new();
+        PATH.get_or_init(|| current_exe().with_file_name("id_cache.json"))
     }
 
     fn load() -> Result<IdCache> {
-        let file = File::open(Self::cache_path()?)?;
+        let file = File::open(Self::cache_path())?;
         serde_json::from_reader(file).context("failed to read cache file")
     }
 
     // to avoid file contention, we require exclusive access to the cache to save it
     pub fn save(&mut self) -> Result<()> {
-        let file = File::create(Self::cache_path()?)?;
+        let file = File::create(Self::cache_path())?;
         serde_json::to_writer(file, self).context("failed to write cache file")
     }
 
     fn get() -> &'static RwLock<IdCache> {
-        static ID_CACHE: OnceLock<RwLock<IdCache>> = OnceLock::new();
-        ID_CACHE.get_or_init(|| {
+        static CACHE: OnceLock<RwLock<IdCache>> = OnceLock::new();
+        CACHE.get_or_init(|| {
             RwLock::new(IdCache::load().unwrap_or_else(|e| {
-                warn!("Failed to load cache: {}", e);
+                warn!("Failed to load cache: {e}");
                 IdCache::default()
             }))
         })

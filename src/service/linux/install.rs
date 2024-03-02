@@ -4,14 +4,13 @@ use std::process::{Command, Stdio};
 use anyhow::{bail, Context, Result};
 use const_format::concatcp;
 
-use crate::current_exe;
+use crate::current_exe_str;
 use crate::service::linux::{SERVICE_DESCRIPTION, SERVICE_NAME};
 
 const UNIT_FILE: &str = concatcp!("/etc/systemd/system/", SERVICE_NAME, ".service");
 
 pub fn install() -> Result<()> {
-    let exec = current_exe()?;
-    let unit_def = gen_unit_def(exec.to_str().context("path is not valid utf-8")?);
+    let unit_def = gen_unit_def(current_exe_str());
     fs::write(UNIT_FILE, unit_def.as_bytes())?;
     systemctl(&["daemon-reload"])?;
     systemctl(&["enable", "--now", SERVICE_NAME])?;

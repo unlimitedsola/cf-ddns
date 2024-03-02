@@ -1,4 +1,3 @@
-use std::env::current_exe;
 use std::fs;
 use std::fs::remove_file;
 use std::process::{Command, Stdio};
@@ -7,17 +6,14 @@ use anyhow::{bail, Context, Result};
 use const_format::concatcp;
 
 use crate::service::macos::SERVICE_NAME;
+use crate::{current_exe, current_exe_str};
 
 const PLIST_PATH: &str = concatcp!("/Library/LaunchDaemons/", SERVICE_NAME, ".plist");
 
 pub fn install() -> Result<()> {
-    let current_exe = current_exe().context("unable to get executable path")?;
-    let log_path = current_exe.with_file_name(concatcp!(SERVICE_NAME, ".log"));
+    let log_path = current_exe().with_file_name(concatcp!(SERVICE_NAME, ".log"));
 
-    let plist = gen_plist(
-        current_exe.to_str().context("path is not valid utf-8")?,
-        log_path.to_str().context("path is not valid utf-8")?,
-    );
+    let plist = gen_plist(current_exe_str(), log_path.to_str().unwrap());
 
     fs::write(PLIST_PATH, plist).context("unable to write service file")?;
     launchctl(&["load", "-w", PLIST_PATH])

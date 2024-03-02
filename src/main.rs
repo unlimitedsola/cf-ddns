@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -43,6 +44,21 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn current_exe() -> Result<PathBuf> {
-    std::env::current_exe().context("unable to get current executable path")
+fn current_exe() -> &'static Path {
+    static EXE: OnceLock<PathBuf> = OnceLock::new();
+    EXE.get_or_init(|| {
+        std::env::current_exe()
+            .context("unable to get current executable path")
+            .unwrap()
+    })
+}
+
+fn current_exe_str() -> &'static str {
+    static STR: OnceLock<&'static str> = OnceLock::new();
+    STR.get_or_init(|| {
+        current_exe()
+            .to_str()
+            .context("unable to convert current executable path to string")
+            .unwrap()
+    })
 }

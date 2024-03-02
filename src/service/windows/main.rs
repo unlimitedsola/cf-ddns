@@ -17,7 +17,7 @@ pub fn run_as_service() -> Result<()> {
         .filename_prefix("cf-ddns")
         .filename_suffix("log")
         .max_log_files(10)
-        .build(current_exe()?.parent().unwrap())?;
+        .build(current_exe().parent().unwrap())?;
     tracing_subscriber::fmt()
         .with_ansi(false)
         .with_writer(file_appender)
