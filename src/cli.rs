@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tracing::instrument;
@@ -12,9 +10,6 @@ use crate::AppContext;
 #[command(name = "cf-ddns")]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    /// Sets a custom config file
-    #[arg(short, long, value_name = "PATH")]
-    pub config: Option<PathBuf>,
     #[command(subcommand)]
     pub command: Option<Command>,
 }
