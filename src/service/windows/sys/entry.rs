@@ -1,9 +1,10 @@
 //! A crude wrapper to make service entry point more Rustic.
 
+use std::sync::{Mutex, MutexGuard};
+
 use anyhow::{bail, Context, Result};
 use futures::channel::oneshot;
 use futures::channel::oneshot::{Receiver, Sender};
-use parking_lot::Mutex;
 use tracing::{error, info};
 use windows::core::{HSTRING, PWSTR};
 use windows::Win32::System::Services;
@@ -14,7 +15,10 @@ use windows::Win32::System::Services::{
 use crate::service::windows::sys::control::{register, start};
 use crate::service::windows::sys::helper::parse_service_entry_arguments;
 
-static SERVICE: Mutex<Option<RunningService>> = Mutex::new(None);
+fn running_service() -> MutexGuard<'static, Option<RunningService>> {
+    static SERVICE: Mutex<Option<RunningService>> = Mutex::new(None);
+    SERVICE.lock().unwrap()
+}
 
 struct RunningService {
     name: HSTRING,
@@ -27,7 +31,7 @@ type ServiceMain = fn(args: Vec<String>, cancel: Receiver<()>) -> Result<()>;
 pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
     let name = HSTRING::from(name);
     {
-        let mut svc = SERVICE.lock();
+        let mut svc = running_service();
         if let Some(ref svc) = *svc {
             bail!("Service '{}' is already running.", svc.name);
         }
@@ -48,7 +52,7 @@ pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
 
 fn run_service(args: Vec<String>) -> Result<()> {
     let (name, entry, cancel) = {
-        let mut svc = SERVICE.lock();
+        let mut svc = running_service();
         match *svc {
             Some(ref mut svc) => {
                 let (tx, rx) = oneshot::channel::<()>();
@@ -83,7 +87,7 @@ pub extern "system" fn ffi_control_handler(control: u32) {
     info!("Received service control signal.");
     if control == Services::SERVICE_CONTROL_STOP {
         info!("Sending stop signal to service worker...");
-        let cancel = SERVICE.lock().as_mut().and_then(|svc| svc.cancel.take());
+        let cancel = running_service().as_mut().and_then(|svc| svc.cancel.take());
         if let Some(cancel) = cancel {
             if let Err(e) = cancel.send(()) {
                 error!("Failed to send stop signal to service worker: {e:?}");

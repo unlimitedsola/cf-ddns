@@ -3,7 +3,6 @@
 use std::net::IpAddr::{V4, V6};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use concat_string::concat_string;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
@@ -70,7 +69,7 @@ impl<'a> ApiRequest for ListDnsRecords<'a> {
     type Query = ListDnsRecordsParams<'a>;
     type Response = Vec<DnsRecord>;
     fn url(&self) -> String {
-        concat_string!(BASE_URL, "/zones/", self.zone_identifier, "/dns_records")
+        format!("{}/zones/{}/dns_records", BASE_URL, self.zone_identifier)
     }
     fn query(&self) -> Option<&Self::Query> {
         Some(&self.params)
@@ -111,7 +110,7 @@ impl<'a> ApiRequest for CreateDnsRecord<'a> {
         Method::POST
     }
     fn url(&self) -> String {
-        concat_string!(BASE_URL, "/zones/", self.zone_identifier, "/dns_records")
+        format!("{}/zones/{}/dns_records", BASE_URL, self.zone_identifier)
     }
     fn body(&self) -> Option<&Self::Request> {
         Some(&self.params)
@@ -152,12 +151,9 @@ impl<'a> ApiRequest for UpdateDnsRecord<'a> {
         Method::PATCH
     }
     fn url(&self) -> String {
-        concat_string!(
-            BASE_URL,
-            "/zones/",
-            self.zone_identifier,
-            "/dns_records/",
-            self.identifier
+        format!(
+            "{}/zones/{}/dns_records/{}",
+            BASE_URL, self.zone_identifier, self.identifier
         )
     }
     fn body(&self) -> Option<&Self::Request> {
