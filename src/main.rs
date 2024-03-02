@@ -26,7 +26,7 @@ impl AppContext {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     #[cfg(all(windows, feature = "service"))]
     if service::is_in_windows_service()? {
