@@ -60,12 +60,12 @@ impl Config {
 #[derive(Debug, Clone)]
 pub struct ZoneRecord<'a> {
     pub zone: &'a str,
-    pub ns: &'a str,
+    pub name: &'a str,
 }
 
 impl<'a> ZoneRecord<'a> {
-    pub fn new(zone: &'a str, ns: &'a str) -> Self {
-        ZoneRecord { zone, ns }
+    pub fn new(zone: &'a str, name: &'a str) -> Self {
+        ZoneRecord { zone, name }
     }
 }
 
@@ -73,8 +73,8 @@ impl Config {
     pub fn zone_records(&self) -> Vec<ZoneRecord> {
         self.zones
             .iter()
-            .flat_map(|(zone, ns)| repeat(zone).zip(ns.iter()))
-            .map(|(zone, ns)| ZoneRecord::new(zone, ns))
+            .flat_map(|(zone, name)| repeat(zone).zip(name.iter()))
+            .map(|(zone, name)| ZoneRecord::new(zone, name))
             .collect()
     }
 }

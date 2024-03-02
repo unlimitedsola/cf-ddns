@@ -33,9 +33,9 @@ impl AppContext {
             cf,
         })
     }
-    pub async fn update(&self, ns: Option<&str>) -> Result<()> {
+    pub async fn update(&self, name: Option<&str>) -> Result<()> {
         let mut updater = self.new_updater()?;
-        updater.update(ns).await;
+        updater.update(name).await;
         Ok(())
     }
 }
@@ -43,10 +43,10 @@ impl AppContext {
 impl<'a> Updater<'a> {
     // SAFETY: require &mut self because we have interior mutability of the cache
     #[instrument(skip(self))]
-    pub async fn update(&mut self, ns: Option<&str>) {
+    pub async fn update(&mut self, name: Option<&str>) {
         let mut records = self.app.config.zone_records();
-        if let Some(ns) = ns {
-            records.retain(|rec| rec.ns == ns)
+        if let Some(name) = name {
+            records.retain(|rec| rec.name == name)
         }
 
         info!("Updating records: {records:?}");
@@ -95,7 +95,7 @@ impl<'a> Updater<'a> {
             IpAddr::V4(_) => "A",
             IpAddr::V6(_) => "AAAA",
         };
-        info!("Updating {rec_type} record for '{}'", rec.ns);
+        info!("Updating {rec_type} record for '{}'", rec.name);
         let zone_id = match self.zone_id(rec.zone).await {
             Ok(id) => id,
             Err(e) => {
@@ -103,13 +103,13 @@ impl<'a> Updater<'a> {
                 return;
             }
         };
-        let rec_id = self.record_id(&zone_id, rec.ns, &addr).await;
+        let rec_id = self.record_id(&zone_id, rec.name, &addr).await;
         let rec_id = match &rec_id {
             Ok(r) => r,
             Err(e) => {
                 error!(
                     "Failed to gather information for {rec_type} record '{}': {e}",
-                    rec.ns
+                    rec.name
                 );
                 return;
             }
@@ -118,9 +118,12 @@ impl<'a> Updater<'a> {
             Some(rec_id) => {
                 info!(
                     "Found existing {rec_type} record [{}] for '{}', updating...",
-                    rec_id, rec.ns
+                    rec_id, rec.name
                 );
-                let resp = self.cf.update_record(&zone_id, rec_id, rec.ns, addr).await;
+                let resp = self
+                    .cf
+                    .update_record(&zone_id, rec_id, rec.name, addr)
+                    .await;
                 match resp {
                     Ok(record) => {
                         info!(
@@ -129,17 +132,17 @@ impl<'a> Updater<'a> {
                         )
                     }
                     Err(e) => {
-                        error!("Failed to update {rec_type} record for '{}': {e}", rec.ns);
+                        error!("Failed to update {rec_type} record for '{}': {e}", rec.name);
                     }
                 }
             }
             None => {
-                info!("Creating {rec_type} record for '{}'", rec.ns);
-                let resp = self.cf.create_record(&zone_id, rec.ns, addr).await;
+                info!("Creating {rec_type} record for '{}'", rec.name);
+                let resp = self.cf.create_record(&zone_id, rec.name, addr).await;
                 match resp {
-                    Ok(record) => self.update_cache(rec.ns, record),
+                    Ok(record) => self.update_cache(rec.name, record),
                     Err(e) => {
-                        error!("Failed to create {rec_type} record '{}': {e}", rec.ns);
+                        error!("Failed to create {rec_type} record '{}': {e}", rec.name);
                     }
                 }
             }
@@ -156,16 +159,21 @@ impl<'a> Updater<'a> {
             .ok_or_else(|| anyhow!("Cannot find zone: {zone}"))
     }
 
-    async fn record_id(&self, zone_id: &str, ns: &str, addr: &IpAddr) -> Result<Option<Arc<str>>> {
-        if IdCache::read().get_record(ns, addr).is_none() {
-            self.cache_records(zone_id, ns).await?;
+    async fn record_id(
+        &self,
+        zone_id: &str,
+        name: &str,
+        addr: &IpAddr,
+    ) -> Result<Option<Arc<str>>> {
+        if IdCache::read().get_record(name, addr).is_none() {
+            self.cache_records(zone_id, name).await?;
         }
-        Ok(IdCache::read().get_record(ns, addr))
+        Ok(IdCache::read().get_record(name, addr))
     }
 
-    fn update_cache(&self, ns: &str, record: DnsRecord) {
+    fn update_cache(&self, name: &str, record: DnsRecord) {
         let mut cache = IdCache::write();
-        cache.update_record(ns, record);
+        cache.update_record(name, record);
         // FIXME: error handling
         cache.save().unwrap();
     }
@@ -178,12 +186,12 @@ impl<'a> Updater<'a> {
             .for_each(|zone| cache.save_zone(zone.name, zone.id));
         cache.save()
     }
-    async fn cache_records(&self, zone_id: &str, ns: &str) -> Result<()> {
-        let records = self.cf.list_records(zone_id, ns).await?;
+    async fn cache_records(&self, zone_id: &str, name: &str) -> Result<()> {
+        let records = self.cf.list_records(zone_id, name).await?;
         let mut cache = IdCache::write();
         records
             .into_iter()
-            .for_each(|rec| cache.update_record(ns, rec));
+            .for_each(|rec| cache.update_record(name, rec));
         cache.save()
     }
 }

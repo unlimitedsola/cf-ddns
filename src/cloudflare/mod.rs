@@ -99,22 +99,27 @@ impl CloudFlare {
     pub async fn list_zones(&self) -> Result<Vec<Zone>> {
         self.call(&ListZones).await
     }
-    pub async fn list_records(&self, zone_id: &str, ns: &str) -> Result<Vec<DnsRecord>> {
+    pub async fn list_records(&self, zone_id: &str, name: &str) -> Result<Vec<DnsRecord>> {
         let req = ListDnsRecords {
             zone_identifier: zone_id,
             params: ListDnsRecordsParams {
-                name: Some(ns),
+                name: Some(name),
                 ..Default::default()
             },
         };
         self.call(&req).await
     }
 
-    pub async fn create_record(&self, zone_id: &str, ns: &str, addr: IpAddr) -> Result<DnsRecord> {
+    pub async fn create_record(
+        &self,
+        zone_id: &str,
+        name: &str,
+        addr: IpAddr,
+    ) -> Result<DnsRecord> {
         let req = CreateDnsRecord {
             zone_identifier: zone_id,
             params: CreateDnsRecordParams {
-                name: ns,
+                name,
                 content: addr.into(),
                 ttl: Some(60),
                 proxied: Some(false),
@@ -128,14 +133,14 @@ impl CloudFlare {
         &self,
         zone_id: &str,
         rec_id: &str,
-        ns: &str,
+        name: &str,
         addr: IpAddr,
     ) -> Result<DnsRecord> {
         let req = UpdateDnsRecord {
             zone_identifier: zone_id,
             identifier: rec_id,
             params: UpdateDnsRecordParams {
-                name: ns,
+                name,
                 content: addr.into(),
                 ttl: None,
                 proxied: None,

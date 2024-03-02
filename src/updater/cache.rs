@@ -84,21 +84,21 @@ impl IdCache {
         self.zones.get(zone).cloned()
     }
 
-    pub fn get_record(&self, ns: &str, addr: &IpAddr) -> Option<Arc<str>> {
-        self.records.get(ns).and_then(|r| r.get_for(addr))
+    pub fn get_record(&self, name: &str, addr: &IpAddr) -> Option<Arc<str>> {
+        self.records.get(name).and_then(|r| r.get_for(addr))
     }
 
     pub fn save_zone(&mut self, zone: String, id: String) {
         self.zones.insert(zone, id.into());
     }
 
-    pub fn update_record(&mut self, ns: &str, record: DnsRecord) {
-        if let Some(cache) = self.records.get_mut(ns) {
+    pub fn update_record(&mut self, name: &str, record: DnsRecord) {
+        if let Some(cache) = self.records.get_mut(name) {
             cache.update(record)
         } else {
             let mut cache = RecordIdCache::default();
             cache.update(record);
-            self.records.insert(ns.to_owned(), cache);
+            self.records.insert(name.to_owned(), cache);
         }
     }
 }

@@ -17,7 +17,7 @@ pub struct Cli {
 #[derive(Debug, Subcommand, Clone)]
 pub enum Command {
     Update {
-        ns: Option<String>,
+        name: Option<String>,
     },
     #[cfg(feature = "service")]
     #[command(subcommand)]
@@ -30,7 +30,7 @@ impl AppContext {
         match self.cli.command.clone() {
             None => self.update(None).await?,
             Some(cmd) => match cmd {
-                Command::Update { ns } => self.update(ns.as_deref()).await?,
+                Command::Update { name } => self.update(name.as_deref()).await?,
                 #[cfg(feature = "service")]
                 Command::Service(command) => self.run_service_command(&command).await?,
             },
