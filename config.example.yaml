@@ -1,8 +1,23 @@
 token: <your-cloudflare-token>
 zones:
   example.com:
-    - a.example.com
-    - b.example.com
+    a.example.com:
+      v4: true
+      v6: true
+    v4.example.com:
+      v4: true
+    v6.example.com:
+      v6: true
   example.net:
-    - c.example.net
-    - d.example.net
+    a.example.net:
+      v4: true
+      v6: true
+    v4.example.net:
+      v4: true
+    v6.example.net:
+      v6: true
+# update interval in seconds, when running in daemon mode
+# interval: 300
+# lookup provider for retrieving public IP
+# currently only icanhazip is supported
+# lookup: icanhazip

@@ -1,5 +1,4 @@
 use std::future::Future;
-use std::time::Duration;
 
 use anyhow::Result;
 use futures::StreamExt;
@@ -14,10 +13,10 @@ impl AppContext {
         Fut: Future,
     {
         let updater = self.new_updater()?;
-        IntervalStream::new(interval(Duration::from_secs(self.config.interval)))
+        IntervalStream::new(interval(self.config.interval))
             .take_until(cancel)
-            .fold(updater, |mut updater, _| async move {
-                updater.update(None).await;
+            .fold(updater, |updater, _| async move {
+                updater.update(&self.config.records).await;
                 updater
             })
             .await;

@@ -14,13 +14,13 @@ mod lookup;
 mod service;
 mod updater;
 
-pub struct AppContext {
-    pub cli: Cli,
-    pub config: Config,
+struct AppContext {
+    cli: Cli,
+    config: Config,
 }
 
 impl AppContext {
-    pub fn new(cli: Cli) -> Result<Self> {
+    fn new(cli: Cli) -> Result<Self> {
         let config = Config::load()?;
         Ok(AppContext { cli, config })
     }

@@ -9,57 +9,48 @@ use tracing::{error, info, instrument};
 
 use crate::cloudflare::record::DnsRecord;
 use crate::cloudflare::CloudFlare;
-use crate::config::ZoneRecord;
+use crate::config::{Records, ZoneRecord};
 use crate::lookup::{LookupProvider, Provider};
 use crate::updater::cache::IdCache;
 use crate::AppContext;
 
 mod cache;
 
-pub struct Updater<'a> {
-    app: &'a AppContext,
+pub struct Updater {
     lookup: Provider,
     cf: CloudFlare,
 }
 
 impl AppContext {
-    pub fn new_updater(&self) -> Result<Updater<'_>> {
+    pub fn new_updater(&self) -> Result<Updater> {
         let lookup =
             Provider::new(&self.config.lookup).context("unable to initialize lookup provider")?;
         let cf = CloudFlare::new(&self.config.token)?;
-        Ok(Updater {
-            app: self,
-            lookup,
-            cf,
-        })
+        Ok(Updater { lookup, cf })
     }
     pub async fn update(&self, name: Option<&str>) -> Result<()> {
-        let mut updater = self.new_updater()?;
-        updater.update(name).await;
+        let updater = self.new_updater()?;
+        match name {
+            Some(name) => {
+                let records = self.config.records.filter_name(name);
+                updater.update(&records).await;
+            }
+            None => updater.update(&self.config.records).await,
+        }
         Ok(())
     }
 }
 
-impl<'a> Updater<'a> {
-    // SAFETY: require &mut self because we have interior mutability of the cache
-    #[instrument(skip(self))]
-    pub async fn update(&mut self, name: Option<&str>) {
-        let mut records = self.app.config.zone_records();
-        if let Some(name) = name {
-            records.retain(|rec| rec.name == name)
-        }
-
-        info!("Updating records: {records:?}");
-
-        join!(self.update_v4(&records), self.update_v6(&records));
+impl Updater {
+    pub async fn update(&self, records: &Records) {
+        join!(self.update_v4(&records.v4), self.update_v6(&records.v6));
     }
 
-    #[instrument(skip_all)]
-    async fn update_v4(&self, records: &[ZoneRecord<'_>]) {
-        if !&self.app.config.v4 {
-            info!("Skipped IPv4 since it is disabled by config.");
+    async fn update_v4(&self, records: &[ZoneRecord]) {
+        if records.is_empty() {
             return;
         }
+
         let addr = match self.lookup.lookup_v4().await {
             Ok(res) => res.into(),
             Err(e) => {
@@ -71,10 +62,8 @@ impl<'a> Updater<'a> {
         join_all(records.iter().map(|rec| self.update_record(rec, addr))).await;
     }
 
-    #[instrument(skip_all)]
-    async fn update_v6(&self, records: &[ZoneRecord<'_>]) {
-        if !&self.app.config.v6 {
-            info!("Skipped IPv6 since it is disabled by config.");
+    async fn update_v6(&self, records: &[ZoneRecord]) {
+        if records.is_empty() {
             return;
         }
 
@@ -90,20 +79,20 @@ impl<'a> Updater<'a> {
     }
 
     #[instrument(skip(self))]
-    async fn update_record(&self, rec: &ZoneRecord<'_>, addr: IpAddr) {
+    async fn update_record(&self, rec: &ZoneRecord, addr: IpAddr) {
         let rec_type = match addr {
             IpAddr::V4(_) => "A",
             IpAddr::V6(_) => "AAAA",
         };
         info!("Updating {rec_type} record for '{}'", rec.name);
-        let zone_id = match self.zone_id(rec.zone).await {
+        let zone_id = match self.zone_id(&rec.zone).await {
             Ok(id) => id,
             Err(e) => {
                 error!("Failed to get the identifier of zone '{}': {e}", rec.zone);
                 return;
             }
         };
-        let rec_id = self.record_id(&zone_id, rec.name, &addr).await;
+        let rec_id = self.record_id(&zone_id, &rec.name, &addr).await;
         let rec_id = match &rec_id {
             Ok(r) => r,
             Err(e) => {
@@ -122,7 +111,7 @@ impl<'a> Updater<'a> {
                 );
                 let resp = self
                     .cf
-                    .update_record(&zone_id, rec_id, rec.name, addr)
+                    .update_record(&zone_id, rec_id, &rec.name, addr)
                     .await;
                 match resp {
                     Ok(record) => {
@@ -138,9 +127,9 @@ impl<'a> Updater<'a> {
             }
             None => {
                 info!("Creating {rec_type} record for '{}'", rec.name);
-                let resp = self.cf.create_record(&zone_id, rec.name, addr).await;
+                let resp = self.cf.create_record(&zone_id, &rec.name, addr).await;
                 match resp {
-                    Ok(record) => self.update_cache(rec.name, record),
+                    Ok(record) => self.update_cache(&rec.name, record),
                     Err(e) => {
                         error!("Failed to create {rec_type} record '{}': {e}", rec.name);
                     }
