@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::cloudflare::record::DnsContent::{A, AAAA};
 use crate::cloudflare::{ApiRequest, BASE_URL};
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct DnsRecord {
     /// DNS record identifier tag
     pub id: String,

@@ -24,7 +24,7 @@ pub struct Updater {
 impl AppContext {
     pub fn new_updater(&self) -> Result<Updater> {
         let lookup =
-            Provider::new(&self.config.lookup).context("unable to initialize lookup provider")?;
+            Provider::new(&self.config.lookup).context("unable to initialize lookup service")?;
         let cf = CloudFlare::new(&self.config.token)?;
         Ok(Updater { lookup, cf })
     }
@@ -54,12 +54,17 @@ impl Updater {
         let addr = match self.lookup.lookup_v4().await {
             Ok(res) => res.into(),
             Err(e) => {
-                error!("Failed to lookup the IPv4 address of the current network: {e}");
+                error!("Failed to lookup the current IPv4 address: {e}");
                 return;
             }
         };
         info!("Current IPv4: {addr}");
-        join_all(records.iter().map(|rec| self.update_record(rec, addr))).await;
+        join_all(
+            records
+                .iter()
+                .map(|rec| self.update_record_print(rec, addr)),
+        )
+        .await;
     }
 
     async fn update_v6(&self, records: &[ZoneRecord]) {
@@ -70,72 +75,62 @@ impl Updater {
         let addr = match self.lookup.lookup_v6().await {
             Ok(res) => res.into(),
             Err(e) => {
-                error!("Failed to lookup the IPv6 address of the current network: {e}");
+                error!("Failed to lookup the current IPv6 address: {e}");
                 return;
             }
         };
         info!("Current IPv6: {addr}");
-        join_all(records.iter().map(|rec| self.update_record(rec, addr))).await;
+        join_all(
+            records
+                .iter()
+                .map(|rec| self.update_record_print(rec, addr)),
+        )
+        .await;
     }
 
-    #[instrument(skip(self))]
-    async fn update_record(&self, rec: &ZoneRecord, addr: IpAddr) {
+    #[instrument(name = "update", skip(self))]
+    async fn update_record_print(&self, rec: &ZoneRecord, addr: IpAddr) {
         let rec_type = match addr {
             IpAddr::V4(_) => "A",
             IpAddr::V6(_) => "AAAA",
         };
-        info!("Updating {rec_type} record for '{}'", rec.name);
-        let zone_id = match self.zone_id(&rec.zone).await {
-            Ok(id) => id,
+        info!("Updating {rec_type} record '{}'", rec.name);
+        match self.update_record(rec, addr).await {
             Err(e) => {
-                error!("Failed to get the identifier of zone '{}': {e}", rec.zone);
-                return;
+                error!("Failed to update {rec_type} record '{}': {e}", rec.name);
             }
-        };
-        let rec_id = self.record_id(&zone_id, &rec.name, &addr).await;
-        let rec_id = match &rec_id {
-            Ok(r) => r,
-            Err(e) => {
-                error!(
-                    "Failed to gather information for {rec_type} record '{}': {e}",
-                    rec.name
-                );
-                return;
-            }
-        };
-        match rec_id {
-            Some(rec_id) => {
-                info!(
-                    "Found existing {rec_type} record [{}] for '{}', updating...",
-                    rec_id, rec.name
-                );
-                let resp = self
-                    .cf
-                    .update_record(&zone_id, rec_id, &rec.name, addr)
-                    .await;
-                match resp {
-                    Ok(record) => {
-                        info!(
-                            "Updated {rec_type} record '{}' to {:?}",
-                            record.name, record.content
-                        )
-                    }
-                    Err(e) => {
-                        error!("Failed to update {rec_type} record for '{}': {e}", rec.name);
-                    }
-                }
-            }
-            None => {
-                info!("Creating {rec_type} record for '{}'", rec.name);
-                let resp = self.cf.create_record(&zone_id, &rec.name, addr).await;
-                match resp {
-                    Ok(record) => self.update_cache(&rec.name, record),
-                    Err(e) => {
-                        error!("Failed to create {rec_type} record '{}': {e}", rec.name);
-                    }
-                }
+            Ok(_) => {
+                info!("Updated {rec_type} record '{}'", rec.name);
             }
         }
+    }
+
+    async fn update_record(&self, rec: &ZoneRecord, addr: IpAddr) -> Result<DnsRecord> {
+        let zone_id = self
+            .zone_id(&rec.zone)
+            .await
+            .context("Failed to get the zone identifier")?;
+        let rec_id = self
+            .record_id(&zone_id, &rec.name, &addr)
+            .await
+            .context("Failed to get the record identifier")?;
+        let record = match rec_id {
+            Some(rec_id) => self
+                .cf
+                .update_record(&zone_id, &rec_id, &rec.name, addr)
+                .await
+                .context("Failed to update the record")?,
+            None => {
+                let record = self
+                    .cf
+                    .create_record(&zone_id, &rec.name, addr)
+                    .await
+                    .context("Failed to create the record")?;
+                self.update_cache(&rec.name, record.clone())?;
+                record
+            }
+        };
+        Ok(record)
     }
     async fn zone_id(&self, zone: &str) -> Result<Arc<str>> {
         let res = IdCache::read().get_zone(zone);
@@ -160,11 +155,10 @@ impl Updater {
         Ok(IdCache::read().get_record(name, addr))
     }
 
-    fn update_cache(&self, name: &str, record: DnsRecord) {
+    fn update_cache(&self, name: &str, record: DnsRecord) -> Result<()> {
         let mut cache = IdCache::write();
         cache.update_record(name, record);
-        // FIXME: error handling
-        cache.save().unwrap();
+        cache.save()
     }
 
     async fn cache_zones(&self) -> Result<()> {
