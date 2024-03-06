@@ -10,7 +10,7 @@ use tracing::{error, info, instrument};
 use crate::cloudflare::record::DnsRecord;
 use crate::cloudflare::CloudFlare;
 use crate::config::{Records, ZoneRecord};
-use crate::lookup::{LookupProvider, Provider};
+use crate::lookup::{Lookup, Provider};
 use crate::updater::cache::IdCache;
 use crate::AppContext;
 

@@ -7,7 +7,7 @@ use crate::lookup::icanhazip::ICanHazIp;
 
 mod icanhazip;
 
-pub trait LookupProvider {
+pub trait Lookup {
     async fn lookup_v4(&self) -> Result<Ipv4Addr>;
     async fn lookup_v6(&self) -> Result<Ipv6Addr>;
 }
@@ -24,7 +24,7 @@ impl Provider {
     }
 }
 
-impl LookupProvider for Provider {
+impl Lookup for Provider {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
         match self {
             Provider::ICanHazIp(i) => i.lookup_v4(),

@@ -4,7 +4,7 @@ use std::str::FromStr;
 use anyhow::{Context, Result};
 use reqwest::Client;
 
-use crate::lookup::LookupProvider;
+use crate::lookup::Lookup;
 
 pub struct ICanHazIp {
     client: Client,
@@ -26,7 +26,7 @@ impl ICanHazIp {
     }
 }
 
-impl LookupProvider for ICanHazIp {
+impl Lookup for ICanHazIp {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
         self.lookup("https://ipv4.icanhazip.com").await
     }
@@ -38,7 +38,7 @@ impl LookupProvider for ICanHazIp {
 #[cfg(test)]
 mod tests {
     use crate::lookup::icanhazip::ICanHazIp;
-    use crate::lookup::LookupProvider;
+    use crate::lookup::Lookup;
 
     #[tokio::test]
     #[ignore]
