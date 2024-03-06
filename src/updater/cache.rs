@@ -2,11 +2,10 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, OnceLock};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use tracing::warn;
 
 use crate::cloudflare::record::DnsContent::{A, AAAA};
 use crate::cloudflare::record::DnsRecord;
@@ -48,33 +47,15 @@ impl IdCache {
         PATH.get_or_init(|| current_exe().with_file_name("id_cache.json"))
     }
 
-    fn load() -> Result<IdCache> {
+    pub fn load() -> Result<IdCache> {
         let file = File::open(Self::cache_path())?;
-        serde_json::from_reader(file).context("failed to read cache file")
+        serde_json::from_reader(file).context("failed to load cache")
     }
 
     // to avoid file contention, we require exclusive access to the cache to save it
     pub fn save(&mut self) -> Result<()> {
         let file = File::create(Self::cache_path())?;
-        serde_json::to_writer(file, self).context("failed to write cache file")
-    }
-
-    fn get() -> &'static RwLock<IdCache> {
-        static CACHE: OnceLock<RwLock<IdCache>> = OnceLock::new();
-        CACHE.get_or_init(|| {
-            RwLock::new(IdCache::load().unwrap_or_else(|e| {
-                warn!("Failed to load cache: {e}");
-                IdCache::default()
-            }))
-        })
-    }
-
-    pub fn read() -> RwLockReadGuard<'static, IdCache> {
-        Self::get().read().unwrap()
-    }
-
-    pub fn write() -> RwLockWriteGuard<'static, IdCache> {
-        Self::get().write().unwrap()
+        serde_json::to_writer(file, self).context("failed to write cache")
     }
 }
 
@@ -92,12 +73,11 @@ impl IdCache {
     }
 
     pub fn update_record(&mut self, name: &str, record: DnsRecord) {
-        if let Some(cache) = self.records.get_mut(name) {
-            cache.update(record)
-        } else {
-            let mut cache = RecordIdCache::default();
-            cache.update(record);
-            self.records.insert(name.to_owned(), cache);
-        }
+        self.records
+            // it is most likely that the record is not present
+            // in the cache when this function is called
+            .entry(name.to_owned())
+            .or_default()
+            .update(record);
     }
 }
