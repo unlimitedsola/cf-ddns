@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Parser;
 use futures::channel::oneshot::Receiver;
-use tracing::{info, instrument};
+use tracing::info;
 use tracing_appender::rolling::RollingFileAppender;
 
 use crate::cli::Cli;
@@ -26,7 +26,6 @@ pub fn run_as_service() -> Result<()> {
     run(SERVICE_NAME, service_main)
 }
 
-#[instrument(skip(cancel), ret, err)]
 fn service_main(args: Vec<String>, cancel: Receiver<()>) -> Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()

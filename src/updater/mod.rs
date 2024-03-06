@@ -5,7 +5,7 @@ use anyhow::Result;
 use anyhow::{anyhow, Context};
 use futures::future::join_all;
 use futures::join;
-use tracing::{error, info, instrument, warn};
+use tracing::{error, info, warn};
 
 use crate::cloudflare::record::DnsRecord;
 use crate::cloudflare::CloudFlare;
@@ -93,7 +93,6 @@ impl Updater {
         .await;
     }
 
-    #[instrument(name = "update", skip(self))]
     async fn update_record_print(&self, rec: &ZoneRecord, addr: IpAddr) {
         let rec_type = match addr {
             IpAddr::V4(_) => "A",

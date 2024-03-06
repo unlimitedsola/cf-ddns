@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use tracing::instrument;
 
 #[cfg(feature = "service")]
 use crate::service::ServiceCommand;
@@ -25,7 +24,6 @@ pub enum Command {
 }
 
 impl AppContext {
-    #[instrument(skip(self), fields(cli = ? self.cli), ret, err)]
     pub async fn run(&self) -> Result<()> {
         match self.cli.command.clone() {
             None => self.update(None).await?,
