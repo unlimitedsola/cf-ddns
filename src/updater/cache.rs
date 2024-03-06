@@ -38,7 +38,6 @@ impl RecordIdCache {
         match record.content {
             A { .. } => self.v4 = Some(record.id.into()),
             AAAA { .. } => self.v6 = Some(record.id.into()),
-            _ => {}
         }
     }
 }

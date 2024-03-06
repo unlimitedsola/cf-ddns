@@ -21,19 +21,13 @@ pub struct DnsRecord {
 }
 
 /// Type of the DNS record, along with the associated value.
-/// When we add support for other types (LOC/SRV/...), the `meta` field should also probably be encoded
-/// here as an associated, strongly typed value.
+/// This is a simplified version of the actual Cloudflare API response.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type")]
 #[allow(clippy::upper_case_acronyms)]
 pub enum DnsContent {
     A { content: Ipv4Addr },
     AAAA { content: Ipv6Addr },
-    CNAME { content: String },
-    NS { content: String },
-    MX { content: String, priority: u16 },
-    TXT { content: String },
-    SRV { content: String },
 }
 
 // Conversion
@@ -57,11 +51,9 @@ pub struct ListDnsRecords<'a> {
 #[serde_with::skip_serializing_none]
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct ListDnsRecordsParams<'a> {
-    #[serde(flatten)]
-    pub record_type: Option<DnsContent>,
+    #[serde(rename = "type")]
+    pub record_type: Option<&'a str>,
     pub name: Option<&'a str>,
-    pub page: Option<u32>,
-    pub per_page: Option<u32>,
 }
 
 impl<'a> ApiRequest for ListDnsRecords<'a> {

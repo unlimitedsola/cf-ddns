@@ -103,8 +103,9 @@ impl CloudFlare {
         let req = ListDnsRecords {
             zone_identifier: zone_id,
             params: ListDnsRecordsParams {
+                // we only care about A and AAAA records
+                record_type: Some("A,AAAA"),
                 name: Some(name),
-                ..Default::default()
             },
         };
         self.call(&req).await
