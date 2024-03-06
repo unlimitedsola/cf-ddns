@@ -3,7 +3,7 @@
 use const_format::concatcp;
 use serde::{Deserialize, Serialize};
 
-use crate::cloudflare::{ApiRequest, BASE_URL};
+use crate::cloudflare::client::{ApiRequest, BASE_URL};
 
 #[derive(Deserialize, Debug)]
 pub struct Zone {
@@ -11,8 +11,7 @@ pub struct Zone {
     pub name: String,
 }
 
-/// List Zones
-/// https://api.cloudflare.com/#zone-list-zones
+/// [List Zones](https://developers.cloudflare.com/api/operations/zones-get)
 #[derive(Serialize, Debug)]
 pub struct ListZones;
 

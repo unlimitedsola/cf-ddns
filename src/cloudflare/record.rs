@@ -6,8 +6,8 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
+use crate::cloudflare::client::{ApiRequest, BASE_URL};
 use crate::cloudflare::record::DnsContent::{A, AAAA};
-use crate::cloudflare::{ApiRequest, BASE_URL};
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct DnsRecord {
@@ -21,7 +21,7 @@ pub struct DnsRecord {
 }
 
 /// Type of the DNS record, along with the associated value.
-/// This is a simplified version of the actual Cloudflare API response.
+/// We only care about A and AAAA records for now.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type")]
 #[allow(clippy::upper_case_acronyms)]
@@ -30,7 +30,6 @@ pub enum DnsContent {
     AAAA { content: Ipv6Addr },
 }
 
-// Conversion
 impl From<IpAddr> for DnsContent {
     fn from(ip: IpAddr) -> Self {
         match ip {
@@ -40,8 +39,7 @@ impl From<IpAddr> for DnsContent {
     }
 }
 
-/// List DNS Records
-/// https://api.cloudflare.com/#dns-records-for-a-zone-list-dns-records
+/// [List DNS Records](https://developers.cloudflare.com/api/operations/dns-records-for-a-zone-list-dns-records)
 #[derive(Debug)]
 pub struct ListDnsRecords<'a> {
     pub zone_identifier: &'a str,
@@ -68,8 +66,7 @@ impl<'a> ApiRequest for ListDnsRecords<'a> {
     }
 }
 
-/// Create DNS Record
-/// https://api.cloudflare.com/#dns-records-for-a-zone-create-dns-record
+/// [Create DNS Record](https://developers.cloudflare.com/api/operations/dns-records-for-a-zone-create-dns-record)
 #[derive(Debug)]
 pub struct CreateDnsRecord<'a> {
     pub zone_identifier: &'a str,
@@ -81,9 +78,6 @@ pub struct CreateDnsRecord<'a> {
 pub struct CreateDnsRecordParams<'a> {
     /// Time to live for DNS record. Value of 1 is 'automatic'
     pub ttl: Option<u32>,
-    /// Used with some records like MX and SRV to determine priority.
-    /// If you do not supply a priority for an MX record, a default value of 0 will be set
-    pub priority: Option<u16>,
     /// Whether the record is receiving the performance and security benefits of Cloudflare
     pub proxied: Option<bool>,
     /// DNS record name
@@ -109,8 +103,7 @@ impl<'a> ApiRequest for CreateDnsRecord<'a> {
     }
 }
 
-/// Update DNS Record
-/// https://api.cloudflare.com/#dns-records-for-a-zone-update-dns-record
+/// [Update DNS Record](https://developers.cloudflare.com/api/operations/dns-records-for-a-zone-patch-dns-record)
 #[derive(Debug)]
 pub struct UpdateDnsRecord<'a> {
     pub zone_identifier: &'a str,
@@ -121,10 +114,6 @@ pub struct UpdateDnsRecord<'a> {
 #[serde_with::skip_serializing_none]
 #[derive(Serialize, Clone, Debug)]
 pub struct UpdateDnsRecordParams<'a> {
-    /// Time to live for DNS record. Value of 1 is 'automatic'
-    pub ttl: Option<u32>,
-    /// Whether the record is receiving the performance and security benefits of Cloudflare
-    pub proxied: Option<bool>,
     /// DNS record name
     pub name: &'a str,
     /// Type of the DNS record that also holds the record value
@@ -138,7 +127,7 @@ impl<'a> ApiRequest for UpdateDnsRecord<'a> {
     type Response = DnsRecord;
 
     // We use PATCH here to allow user to preserve some modifications
-    // in case they are not satisfied with default TTL, proxied, etc
+    // in case they are not satisfied with default TTL, proxied, etc.
     fn method(&self) -> Method {
         Method::PATCH
     }

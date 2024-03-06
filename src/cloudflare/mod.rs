@@ -2,12 +2,9 @@
 
 use std::net::IpAddr;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
-use reqwest::Method;
-use reqwest::{ClientBuilder, IntoUrl};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use reqwest::ClientBuilder;
 
 use crate::cloudflare::record::{
     CreateDnsRecord, CreateDnsRecordParams, DnsRecord, ListDnsRecords, ListDnsRecordsParams,
@@ -15,6 +12,7 @@ use crate::cloudflare::record::{
 };
 use crate::cloudflare::zone::{ListZones, Zone};
 
+mod client;
 pub mod record;
 pub mod zone;
 
@@ -33,64 +31,6 @@ impl CloudFlare {
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         let http = ClientBuilder::new().default_headers(headers).build()?;
         Ok(CloudFlare { http })
-    }
-}
-
-trait ApiRequest {
-    type Request: Serialize;
-    type Query: Serialize;
-    type Response: DeserializeOwned;
-
-    fn method(&self) -> Method {
-        Method::GET
-    }
-    fn url(&self) -> impl IntoUrl;
-    fn query(&self) -> Option<&Self::Query> {
-        None
-    }
-    fn body(&self) -> Option<&Self::Request> {
-        None
-    }
-}
-
-const BASE_URL: &str = "https://api.cloudflare.com/client/v4"; // no trailing slash
-
-// Base exchange implementation
-impl CloudFlare {
-    async fn call<Api>(&self, api: &Api) -> Result<Api::Response>
-    where
-        Api: ApiRequest,
-    {
-        let mut request = self
-            .http
-            .request(api.method(), api.url())
-            .query(&api.query());
-
-        if let Some(body) = api.body() {
-            request = request.json(body);
-        }
-        extract_response(request.send().await?).await
-    }
-}
-
-#[derive(Deserialize, Debug)]
-struct Response<T> {
-    pub result: T,
-}
-
-async fn extract_response<T>(resp: reqwest::Response) -> Result<T>
-where
-    T: DeserializeOwned,
-{
-    let status = resp.status();
-    if status.is_success() {
-        Ok(resp.json::<Response<T>>().await?.result)
-    } else {
-        bail!(
-            "Error from Cloudflare API, status: {}, response: {}",
-            status,
-            resp.text().await?,
-        )
     }
 }
 
@@ -124,7 +64,6 @@ impl CloudFlare {
                 content: addr.into(),
                 ttl: Some(60),
                 proxied: Some(false),
-                priority: None,
             },
         };
         self.call(&req).await
@@ -143,8 +82,6 @@ impl CloudFlare {
             params: UpdateDnsRecordParams {
                 name,
                 content: addr.into(),
-                ttl: None,
-                proxied: None,
             },
         };
         self.call(&req).await
