@@ -14,8 +14,8 @@ the DNS record if it has changed.
 
 - **Written in [Rust]**: Enjoy the benefits of Rust's memory-safety and performance.
 - **Designed for [CloudFlare]**: Specifically designed to work with CloudFlare's API.
-- **Run as a Service**: Can be run as a service on a server or a device and periodically check and update the DNS.
-  records.
+- **Run as a Service**: Can be run as a service on a server or a device
+  and periodically check and update the DNS records.
 - **IPv4 and IPv6**: Support both IPv4 and IPv6 addresses.
 - **Cross-platform**: Works on Linux, macOS, and Windows.
 - **User-Friendly**: Engineered for ease of use and straightforward configuration.
