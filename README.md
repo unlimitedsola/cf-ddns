@@ -23,7 +23,7 @@ the DNS record if it has changed.
 
 The latest release binaries are available for download on the [releases page].
 
-[release page]: https://github.com/unlimitedsola/cf-ddns/releases/latest
+[releases page]: https://github.com/unlimitedsola/cf-ddns/releases/latest
 
 ## Configuration
 
