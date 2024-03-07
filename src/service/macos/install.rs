@@ -1,10 +1,10 @@
 use std::fs;
 use std::fs::remove_file;
-use std::process::{Command, Stdio};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use const_format::concatcp;
 
+use crate::service::exec::exec;
 use crate::service::macos::SERVICE_NAME;
 use crate::{current_exe, current_exe_str};
 
