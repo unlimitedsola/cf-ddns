@@ -16,11 +16,11 @@ pub fn install() -> Result<()> {
     let plist = gen_plist(current_exe_str(), log_path.to_str().unwrap());
 
     fs::write(PLIST_PATH, plist).context("unable to write service file")?;
-    launchctl(&["load", "-w", PLIST_PATH])
+    exec(LAUNCHCTL, &["load", "-w", PLIST_PATH])
 }
 
 pub fn uninstall() -> Result<()> {
-    launchctl(&["unload", "-w", PLIST_PATH])?;
+    exec(LAUNCHCTL, &["unload", "-w", PLIST_PATH])?;
     remove_file(PLIST_PATH).context("unable to remove service file")
 }
 
@@ -34,30 +34,6 @@ fn gen_plist(exec: &str, log: &str) -> String {
 }
 
 const LAUNCHCTL: &str = "launchctl";
-
-fn launchctl(args: &[&str]) -> Result<()> {
-    let output = Command::new(LAUNCHCTL)
-        .args(args)
-        .stdin(Stdio::null())
-        .stderr(Stdio::piped())
-        .stdout(Stdio::piped())
-        .output()?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        let msg = String::from_utf8(output.stderr)
-            .ok()
-            .filter(|s| !s.trim().is_empty())
-            .or_else(|| {
-                String::from_utf8(output.stdout)
-                    .ok()
-                    .filter(|s| !s.trim().is_empty())
-            })
-            .unwrap_or_else(|| format!("Failed to execute: {LAUNCHCTL} {args:?}"));
-
-        bail!(msg)
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -1,10 +1,9 @@
-use std::fs;
-use std::process::{Command, Stdio};
-
-use anyhow::{bail, Context, Result};
+use anyhow::Result;
 use const_format::concatcp;
+use std::fs;
 
 use crate::current_exe_str;
+use crate::service::exec::exec;
 use crate::service::linux::{SERVICE_DESCRIPTION, SERVICE_NAME};
 
 const UNIT_FILE: &str = concatcp!("/etc/systemd/system/", SERVICE_NAME, ".service");
@@ -12,15 +11,15 @@ const UNIT_FILE: &str = concatcp!("/etc/systemd/system/", SERVICE_NAME, ".servic
 pub fn install() -> Result<()> {
     let unit_def = gen_unit_def(current_exe_str());
     fs::write(UNIT_FILE, unit_def.as_bytes())?;
-    systemctl(&["daemon-reload"])?;
-    systemctl(&["enable", "--now", SERVICE_NAME])?;
+    exec(SYSTEMCTL, &["daemon-reload"])?;
+    exec(SYSTEMCTL, &["enable", "--now", SERVICE_NAME])?;
     Ok(())
 }
 
 pub fn uninstall() -> Result<()> {
-    systemctl(&["disable", "--now", SERVICE_NAME])?;
+    exec(SYSTEMCTL, &["disable", "--now", SERVICE_NAME])?;
     fs::remove_file(UNIT_FILE)?;
-    systemctl(&["daemon-reload"])?;
+    exec(SYSTEMCTL, &["daemon-reload"])?;
     Ok(())
 }
 
@@ -33,31 +32,6 @@ fn gen_unit_def(exec: &str) -> String {
 }
 
 const SYSTEMCTL: &str = "systemctl";
-
-// FIXME: reuse this
-fn systemctl(args: &[&str]) -> Result<()> {
-    let output = Command::new(SYSTEMCTL)
-        .args(args)
-        .stdin(Stdio::null())
-        .stderr(Stdio::piped())
-        .stdout(Stdio::piped())
-        .output()?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        let msg = String::from_utf8(output.stderr)
-            .ok()
-            .filter(|s| !s.trim().is_empty())
-            .or_else(|| {
-                String::from_utf8(output.stdout)
-                    .ok()
-                    .filter(|s| !s.trim().is_empty())
-            })
-            .unwrap_or_else(|| format!("Failed to execute: {SYSTEMCTL} {args:?}"));
-
-        bail!(msg)
-    }
-}
 
 #[cfg(test)]
 mod tests {
