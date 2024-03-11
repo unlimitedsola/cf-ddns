@@ -11,7 +11,7 @@ readme = "README.md"
 
 [features]
 default = ["service", "rustls-tls"]
-service = ["dep:windows"]
+service = ["dep:windows", "tokio/signal"]
 # NOTE: App will not function fully if both TLS backends are disabled, as Cloudflare APIs require HTTPS.
 rustls-tls = ["reqwest/rustls-tls"]
 native-tls = ["reqwest/native-tls"]
