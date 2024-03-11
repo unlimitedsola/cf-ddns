@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support `aarch64-unknown-linux-gnu` target
+- Support `aarch64-unknown-linux-gnu` target.
+
+### Changed
+
+- Use `rustls` as the default TLS backend for better portability.
 
 ## [0.1.0] - 2024-03-08
 
 ### Added
 
-- Initial release
+- Initial release.
 
 [unreleased]: https://github.com/unlimitedsola/cf-ddns/compare/v0.1.0...HEAD
 
