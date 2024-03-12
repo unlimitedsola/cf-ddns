@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Use `rustls` as the default TLS backend for better portability.
+- The TLS backend is switched to `rustls`.
 
 ## [0.1.0] - 2024-03-08
 
