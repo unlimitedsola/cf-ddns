@@ -10,10 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support `aarch64-unknown-linux-gnu` target.
+- Support `riscv64gc-unknown-linux-gnu` target.
+- Build universal binary for macOS target.
 
 ### Changed
 
 - The TLS backend is switched to `rustls`.
+
+### Removed
+
+- No longer provide separate builds for `x86_64-apple-darwin` and `aarch64-apple-darwin` targets.
+  Please use the universal binary instead.
 
 ## [0.1.0] - 2024-03-08
 
