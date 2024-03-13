@@ -18,7 +18,7 @@ anyhow = "1.0.81"
 clap = { version = "4.5.2", features = ["derive"] }
 const_format = "0.2.32"
 futures = "0.3.30"
-reqwest = { version = "0.11.25", default-features = false, features = ["rustls", "json"] }
+reqwest = { version = "0.11.26", default-features = false, features = ["rustls", "json"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
 serde_with = "3.7.0"
