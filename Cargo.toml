@@ -15,7 +15,7 @@ service = ["dep:windows", "tokio/signal"]
 
 [dependencies]
 anyhow = "1.0.81"
-clap = { version = "4.5.3", features = ["derive"] }
+clap = { version = "4.5.4", features = ["derive"] }
 const_format = "0.2.32"
 futures = "0.3.30"
 reqwest = { version = "0.11.27", default-features = false, features = ["rustls", "json"] }
