@@ -21,7 +21,7 @@ fn running_service() -> MutexGuard<'static, Option<RunningService>> {
 }
 
 struct RunningService {
-    name: HSTRING,
+    name: String,
     entry: ServiceMain,
     cancel: Option<Sender<()>>,
 }
@@ -29,7 +29,6 @@ struct RunningService {
 type ServiceMain = fn(args: Vec<String>, cancel: Receiver<()>) -> Result<()>;
 
 pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
-    let name = HSTRING::from(name);
     {
         let mut svc = running_service();
         if let Some(ref svc) = *svc {
@@ -37,12 +36,12 @@ pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
         }
 
         *svc = Some(RunningService {
-            name: name.clone(),
+            name: name.to_owned(),
             entry,
             cancel: None,
         });
     }
-    start(&name, ffi_service_entry)
+    start(name, ffi_service_entry)
 }
 
 pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {

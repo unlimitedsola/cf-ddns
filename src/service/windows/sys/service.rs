@@ -21,14 +21,17 @@ impl Service {
     }
 
     pub fn update_description(&self, desc: &str) -> Result<()> {
+        let w_desc = HSTRING::from(desc);
         unsafe {
             Services::ChangeServiceConfig2W(
                 self.handle.raw_handle(),
                 SERVICE_CONFIG_DESCRIPTION,
                 Some(&SERVICE_DESCRIPTIONW {
-                    // FIXME: this is technically unsafe due to the temporary object HSTRING
-                    //        could be dropped before the function call
-                    lpDescription: PWSTR::from_raw(HSTRING::from(desc).as_ptr() as *mut _),
+                    // SAFETY: we rely on that `w_str` will not be dropped before the call.
+                    // The following article also demonstrates this call won't take the
+                    // ownership of `w_str`:
+                    // https://learn.microsoft.com/en-us/windows/win32/services/changing-a-service-configuration
+                    lpDescription: PWSTR::from_raw(w_desc.as_ptr() as *mut _),
                 } as *const _ as *mut _),
             )?;
         }

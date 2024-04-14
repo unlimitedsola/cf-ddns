@@ -10,19 +10,22 @@ pub type ServiceMain = extern "system" fn(argc: u32, argv: *mut PWSTR) -> ();
 /// returns when the service has stopped. The process should simply terminate when the call returns.
 ///
 /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-startservicectrldispatcherw
-pub fn start(name: &HSTRING, entry: ServiceMain) -> Result<()> {
+pub fn start(name: &str, entry: ServiceMain) -> Result<()> {
+    let w_name = HSTRING::from(name);
     let entry_table = &[
         Services::SERVICE_TABLE_ENTRYW {
             // If the service type is SERVICE_WIN32_OWN_PROCESS, this field
             // is ignored, but cannot be NULL.
-            // Not sure why Windows is asking for a mutable string here.
-            // Assuming they won't actually mutate it?
-            lpServiceName: PWSTR::from_raw(name.as_ptr() as *mut _),
+            lpServiceName: PWSTR::from_raw(w_name.as_ptr() as *mut _),
             lpServiceProc: Some(entry),
         },
         Services::SERVICE_TABLE_ENTRYW::default(),
     ];
-    unsafe { Services::StartServiceCtrlDispatcherW(entry_table.as_ptr())? };
+    unsafe {
+        // SAFETY: `entry_table` will be valid during the call, and the callee
+        // won't take the ownership of the `entry_table` as per conventions.
+        Services::StartServiceCtrlDispatcherW(entry_table.as_ptr())?
+    };
     Ok(())
 }
 
