@@ -32,27 +32,35 @@ You can create a token with the required permission in the [API Tokens] section 
 
 [API Tokens]: https://dash.cloudflare.com/profile/api-tokens
 
-Second, create a configuration file `config.yaml` in the same directory as the binary. Here is an example configuration
-file:
+Second, create a configuration file `config.toml` in the same directory as the binary.
+Here is an example configuration file:
 
-```yaml
-token: <your-cloudflare-token>
-zones:
-  example.com:
-    a.example.com:
-      v4: true
-      v6: true
-  example.net:
-    v4.example.net:
-      v4: true
-    v6.example.net:
-      v6: true
+```toml
+token = "<your-cloudflare-token>"
+[[zones]]
+name = "abc.example.com"
+zone = "example.com"
+v4 = true
+v6 = true
+
+[[zones]]
+name = "v4.example.net"
+zone = "example.net"
+v4 = true
+
+[[zones]]
+name = "v6.example.net"
+zone = "example.net"
+v6 = true
 ```
 
 Replace `<your-cloudflare-token>` with your CloudFlare token.
-The `zones` section is a map of zone names to a map of DNS
-record names to their configurations.
-`v4` and `v6` are boolean values indicating whether to update the `A` and `AAAA` records, respectively.
+
+The `zones` section is a list of zones, each containing the following fields:
+
+- `name` will be the full DNS record name, e.g., `abc.example.com`.
+- `zone` is the zone name, e.g., `example.com`.
+- `v4` and `v6` are boolean values indicating whether to update the `A` and `AAAA` records, respectively.
 
 > [!TIP]
 > The updater is designed to automatically create the DNS record if it is missing.
@@ -62,7 +70,7 @@ record names to their configurations.
 > [!TIP]
 > For a more detailed configuration, see the [full configuration example].
 
-[full configuration example]: ./config.example.yaml
+[full configuration example]: ./config.example.toml
 
 Finally, run the binary to update the DNS records:
 

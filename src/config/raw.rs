@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-use std::fs::File;
+use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use serde::Deserialize;
 
 use crate::config::{Config, LookupConfig};
@@ -18,7 +17,7 @@ pub struct RawConfig {
     #[serde(default)]
     interval: Interval,
     #[serde(default)]
-    zones: HashMap<String, RawZoneConfig>,
+    zones: Vec<RawRecordConfig>,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
@@ -35,10 +34,9 @@ impl Interval {
 }
 
 #[derive(Deserialize, Debug)]
-struct RawZoneConfig(HashMap<String, RawRecordConfig>);
-
-#[derive(Deserialize, Debug)]
 struct RawRecordConfig {
+    name: String,
+    zone: String,
     #[serde(default)]
     v4: bool,
     #[serde(default)]
@@ -47,36 +45,39 @@ struct RawRecordConfig {
 
 impl RawConfig {
     fn config_path() -> PathBuf {
-        current_exe().with_file_name("config.yaml")
+        current_exe().with_file_name("config.toml")
     }
 
-    pub fn load() -> anyhow::Result<Self> {
-        Self::load_from(Self::config_path())
+    pub fn load() -> Result<Self> {
+        Self::from_path(Self::config_path())
     }
 
-    pub fn load_from<P: AsRef<Path>>(path: P) -> anyhow::Result<Self> {
-        let file = File::open(path.as_ref())
-            .with_context(|| format!("unable to open config file: {:?}", path.as_ref()))?;
-        serde_yaml::from_reader(file)
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let file = read_to_string(path.as_ref())
+            .with_context(|| format!("unable to read config file: {:?}", path.as_ref()))?;
+
+        Self::from_toml(&file)
             .with_context(|| format!("unable to parse config file: {:?}", path.as_ref()))
+    }
+
+    pub fn from_toml(s: &str) -> Result<Self> {
+        toml::from_str(s).context("unable to parse config content")
     }
 }
 
 impl From<RawConfig> for Config {
     fn from(value: RawConfig) -> Self {
         let mut records = crate::config::Records::default();
-        for (zone, zone_records) in value.zones {
-            for (name, record) in zone_records.0 {
-                let zone_record = crate::config::ZoneRecord {
-                    zone: zone.clone(),
-                    name,
-                };
-                if record.v4 {
-                    records.v4.push(zone_record.clone());
-                }
-                if record.v6 {
-                    records.v6.push(zone_record);
-                }
+        for rec in value.zones {
+            let zone_record = crate::config::ZoneRecord {
+                zone: rec.zone,
+                name: rec.name,
+            };
+            if rec.v4 {
+                records.v4.push(zone_record.clone());
+            }
+            if rec.v6 {
+                records.v6.push(zone_record);
             }
         }
         Config {
@@ -94,9 +95,9 @@ mod tests {
 
     #[test]
     fn minimal() {
-        let cfg: RawConfig = serde_yaml::from_str(
-            // language=yaml
-            "token: test",
+        let cfg = RawConfig::from_toml(
+            // language=toml
+            r#"token = "test""#,
         )
         .unwrap();
         assert_eq!(cfg.lookup, LookupConfig::default());
@@ -106,11 +107,11 @@ mod tests {
 
     #[test]
     fn overridden() {
-        let cfg: RawConfig = serde_yaml::from_str(
-            // language=yaml
+        let cfg = RawConfig::from_toml(
+            // language=toml
             r#"
-                token: test
-                interval: 60
+                token = "test"
+                interval = 60
             "#,
         )
         .unwrap();
@@ -121,11 +122,11 @@ mod tests {
 
     #[test]
     fn lookup() {
-        let cfg: RawConfig = serde_yaml::from_str(
-            // language=yaml
+        let cfg = RawConfig::from_toml(
+            // language=toml
             r#"
-                token: test
-                lookup: icanhazip
+                token = "test"
+                lookup = "icanhazip"
             "#,
         )
         .unwrap();
@@ -134,27 +135,31 @@ mod tests {
 
     #[test]
     fn zones() {
-        let cfg: RawConfig = serde_yaml::from_str(
-            // language=yaml
+        let cfg = RawConfig::from_toml(
+            // language=toml
             r#"
-                token: test
-                zones:
-                  example.com:
-                    www.example.com:
-                    v4.example.com:
-                      v4: true
-                    v6.example.com:
-                      v6: true
+                token = "test"
+                [[zones]]
+                name = "www.example.com"
+                zone = "example.com"
+                [[zones]]
+                name = "v4.example.com"
+                zone = "example.com"
+                v4 = true
+                [[zones]]
+                name = "v6.example.com"
+                zone = "example.com"
+                v6 = true
             "#,
         )
         .unwrap();
-        let www = &cfg.zones["example.com"].0["www.example.com"];
+        let www = &cfg.zones[0];
         assert!(!www.v4);
         assert!(!www.v6);
-        let v4 = &cfg.zones["example.com"].0["v4.example.com"];
+        let v4 = &cfg.zones[1];
         assert!(v4.v4);
         assert!(!v4.v6);
-        let v6 = &cfg.zones["example.com"].0["v6.example.com"];
+        let v6 = &cfg.zones[2];
         assert!(!v6.v4);
         assert!(v6.v6);
     }

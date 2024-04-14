@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The TLS backend is switched to `rustls`.
+- Switched the configuration format from `YAML` to `TOML`.
 
 ### Removed
 

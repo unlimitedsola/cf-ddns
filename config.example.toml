@@ -1,0 +1,45 @@
+token = "<your-cloudflare-token>"
+
+# update interval in seconds, when running in daemon mode
+# interval = 300
+
+# lookup provider for retrieving public IP
+# currently only icanhazip is supported
+# lookup: "icanhazip"
+
+# list of zones to update
+# name: full domain name, e.g. abc.example.com
+# zone: zone name in cloudflare, e.g. example.com
+# v4: update A record
+# v6: update AAAA record
+[[zones]]
+name = "abc.example.com"
+zone = "example.com"
+v4 = true
+v6 = true
+
+[[zones]]
+name = "v4.example.com"
+zone = "example.com"
+v4 = true
+
+[[zones]]
+name = "v6.example.com"
+zone = "example.com"
+v6 = true
+
+[[zones]]
+name = "abc.example.net"
+zone = "example.net"
+v4 = true
+v6 = true
+
+[[zones]]
+name = "v4.example.net"
+zone = "example.net"
+v4 = true
+
+[[zones]]
+name = "v6.example.net"
+zone = "example.net"
+v6 = true
