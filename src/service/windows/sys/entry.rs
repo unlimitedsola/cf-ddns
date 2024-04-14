@@ -61,7 +61,8 @@ fn run_service(args: Vec<String>) -> Result<()> {
             None => bail!("Service is not running."),
         }
     };
-    let handle = register(&name, ffi_control_handler).context("registering service handle")?;
+    let w_name = HSTRING::from(name);
+    let handle = register(&w_name, ffi_control_handler).context("registering service handle")?;
     handle
         .set_status(SERVICE_STATUS {
             dwServiceType: SERVICE_WIN32_OWN_PROCESS,

@@ -9,6 +9,7 @@ use serde::Deserialize;
 use crate::config::{Config, LookupConfig};
 use crate::current_exe;
 
+/// Raw configuration parsed from files.
 #[derive(Deserialize, Debug)]
 pub struct RawConfig {
     token: String,

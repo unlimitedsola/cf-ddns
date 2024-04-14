@@ -8,6 +8,7 @@ use crate::config::raw::RawConfig;
 
 mod raw;
 
+/// Parsed configuration.
 #[derive(Debug)]
 pub struct Config {
     pub token: String,
