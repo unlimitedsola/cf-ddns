@@ -7,14 +7,14 @@ use crate::service::windows::{SERVICE_DESCRIPTION, SERVICE_DISPLAY_NAME, SERVICE
 
 pub fn install() -> Result<()> {
     let mgr = ServiceManager::local_computer()?;
-    mgr.create_service(ServiceCreateConfig {
+    let svc = mgr.create_service(ServiceCreateConfig {
         name: SERVICE_NAME,
         display_name: SERVICE_DISPLAY_NAME,
         description: SERVICE_DESCRIPTION,
         start_type: SERVICE_AUTO_START,
         command: current_exe_str(),
     })?;
-    Ok(())
+    svc.start()
 }
 
 pub fn uninstall() -> Result<()> {

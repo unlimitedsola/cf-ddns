@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use windows::core::{HSTRING, PWSTR};
 use windows::Win32::System::Services;
 use windows::Win32::System::Services::{SERVICE_CONFIG_DESCRIPTION, SERVICE_DESCRIPTIONW};
@@ -15,11 +15,26 @@ impl Service {
         Service { handle }
     }
 
-    pub fn delete(self) -> Result<()> {
-        unsafe { Services::DeleteService(self.handle.raw_handle())? };
-        Ok(())
+    /// Starts the service.
+    ///
+    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-startservicew
+    pub fn start(self) -> Result<()> {
+        unsafe { Services::StartServiceW(self.handle.raw_handle(), None) }
+            .context("Failed to start service")
     }
 
+    /// Deletes the service from the service control manager.
+    /// This should also stop the service if it is running.
+    ///
+    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-deleteservice
+    pub fn delete(self) -> Result<()> {
+        unsafe { Services::DeleteService(self.handle.raw_handle()) }
+            .context("Failed to delete service")
+    }
+
+    /// Updates the description of the service.
+    ///
+    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-changeserviceconfig2w
     pub fn update_description(&self, desc: &str) -> Result<()> {
         let w_desc = HSTRING::from(desc);
         unsafe {
@@ -33,8 +48,8 @@ impl Service {
                     // https://learn.microsoft.com/en-us/windows/win32/services/changing-a-service-configuration
                     lpDescription: PWSTR::from_raw(w_desc.as_ptr() as *mut _),
                 } as *const _ as *mut _),
-            )?;
+            )
         }
-        Ok(())
+        .context("Failed to update service description")
     }
 }

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support `aarch64-unknown-linux-gnu` target.
 - Support `riscv64gc-unknown-linux-gnu` target.
 - Build universal binary for macOS target.
+- Start service automatically after installation on Windows.
 
 ### Changed
 
