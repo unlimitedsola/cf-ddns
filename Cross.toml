@@ -1,3 +1,0 @@
-[build.env]
-# we should respect the user's proxy settings
-passthrough = ["http_proxy", "https_proxy", "no_proxy"]
