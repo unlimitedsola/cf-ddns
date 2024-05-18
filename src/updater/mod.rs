@@ -1,5 +1,6 @@
+use std::cell::RefCell;
 use std::net::IpAddr;
-use std::sync::{Arc, RwLock};
+use std::rc::Rc;
 
 use anyhow::Result;
 use anyhow::{anyhow, Context};
@@ -19,7 +20,14 @@ mod cache;
 pub struct Updater {
     lookup: Provider,
     cf: CloudFlare,
-    cache: RwLock<IdCache>,
+    // SAFETY: RefCell is used to allow mutable access to the cache across async calls.
+    // We ensure that any borrow of the cache won't be held across an await point,
+    // so there won't be concurrent borrows and should not cause any panicking.
+    // Updater is also not `Sync` because of this, so it can't be shared across threads.
+    // We could have used `RwLock` to make it `Sync`, but we are not expecting this to be a
+    // bottleneck, so it is better to be more resource-efficient and save the overhead of
+    // memory barriers and atomic operations instead.
+    cache: RefCell<IdCache>,
 }
 
 impl AppContext {
@@ -27,7 +35,7 @@ impl AppContext {
         let lookup =
             Provider::new(&self.config.lookup).context("unable to initialize lookup service")?;
         let cf = CloudFlare::new(&self.config.token)?;
-        let cache = RwLock::new(IdCache::load().unwrap_or_else(|e| {
+        let cache = RefCell::new(IdCache::load().unwrap_or_else(|e| {
             warn!("Failed to load cache: {e}");
             IdCache::default()
         }));
@@ -139,40 +147,34 @@ impl Updater {
 }
 
 impl Updater {
-    async fn zone_id(&self, zone: &str) -> Result<Arc<str>> {
-        let res = self.cache.read().unwrap().get_zone(zone);
+    async fn zone_id(&self, zone: &str) -> Result<Rc<str>> {
+        let res = self.cache.borrow().get_zone(zone);
         match res {
             Some(id) => return Ok(id),
             None => self.cache_zones().await?,
         }
         self.cache
-            .read()
-            .unwrap()
+            .borrow()
             .get_zone(zone)
             .ok_or_else(|| anyhow!("Cannot find zone: {zone}"))
     }
 
-    async fn record_id(
-        &self,
-        zone_id: &str,
-        name: &str,
-        addr: &IpAddr,
-    ) -> Result<Option<Arc<str>>> {
-        if self.cache.read().unwrap().get_record(name, addr).is_none() {
+    async fn record_id(&self, zone_id: &str, name: &str, addr: &IpAddr) -> Result<Option<Rc<str>>> {
+        if self.cache.borrow().get_record(name, addr).is_none() {
             self.cache_records(zone_id, name).await?;
         }
-        Ok(self.cache.read().unwrap().get_record(name, addr))
+        Ok(self.cache.borrow().get_record(name, addr))
     }
 
     fn update_cache(&self, name: &str, record: DnsRecord) -> Result<()> {
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.borrow_mut();
         cache.update_record(name, record);
         cache.save()
     }
 
     async fn cache_zones(&self) -> Result<()> {
         let zones = self.cf.list_zones().await?;
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.borrow_mut();
         zones
             .into_iter()
             .for_each(|zone| cache.save_zone(zone.name, zone.id));
@@ -181,7 +183,7 @@ impl Updater {
 
     async fn cache_records(&self, zone_id: &str, name: &str) -> Result<()> {
         let records = self.cf.list_records(zone_id, name).await?;
-        let mut cache = self.cache.write().unwrap();
+        let mut cache = self.cache.borrow_mut();
         records
             .into_iter()
             .for_each(|rec| cache.update_record(name, rec));

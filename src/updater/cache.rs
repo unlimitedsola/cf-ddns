@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::rc::Rc;
+use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -14,19 +15,19 @@ use crate::current_exe;
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IdCache {
     /// Zone name to Zone Id
-    zones: HashMap<String, Arc<str>>,
+    zones: HashMap<String, Rc<str>>,
     /// Record name to Record Ids (v4, v6)
     records: HashMap<String, RecordIdCache>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct RecordIdCache {
-    pub v4: Option<Arc<str>>,
-    pub v6: Option<Arc<str>>,
+    pub v4: Option<Rc<str>>,
+    pub v6: Option<Rc<str>>,
 }
 
 impl RecordIdCache {
-    pub fn get_for(&self, addr: &IpAddr) -> Option<Arc<str>> {
+    pub fn get_for(&self, addr: &IpAddr) -> Option<Rc<str>> {
         match addr {
             IpAddr::V4(_) => self.v4.as_ref().cloned(),
             IpAddr::V6(_) => self.v6.as_ref().cloned(),
@@ -60,11 +61,11 @@ impl IdCache {
 }
 
 impl IdCache {
-    pub fn get_zone(&self, zone: &str) -> Option<Arc<str>> {
+    pub fn get_zone(&self, zone: &str) -> Option<Rc<str>> {
         self.zones.get(zone).cloned()
     }
 
-    pub fn get_record(&self, name: &str, addr: &IpAddr) -> Option<Arc<str>> {
+    pub fn get_record(&self, name: &str, addr: &IpAddr) -> Option<Rc<str>> {
         self.records.get(name).and_then(|r| r.get_for(addr))
     }
 
