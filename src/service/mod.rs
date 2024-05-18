@@ -8,6 +8,7 @@ pub use self::macos::*;
 pub use self::windows::*;
 
 mod daemon;
+#[cfg(not(windows))]
 mod exec;
 #[cfg(target_os = "linux")]
 mod linux;

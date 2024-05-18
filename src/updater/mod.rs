@@ -178,6 +178,7 @@ impl Updater {
             .for_each(|zone| cache.save_zone(zone.name, zone.id));
         cache.save()
     }
+
     async fn cache_records(&self, zone_id: &str, name: &str) -> Result<()> {
         let records = self.cf.list_records(zone_id, name).await?;
         let mut cache = self.cache.write().unwrap();
