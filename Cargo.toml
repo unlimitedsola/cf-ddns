@@ -24,7 +24,7 @@ serde_json = "1.0.117"
 serde_with = "3.8.1"
 tokio = { version = "1.38.0", features = ["rt", "macros"] }
 tokio-stream = "0.1.15"
-toml = "0.8.13"
+toml = "0.8.14"
 tracing = "0.1.40"
 tracing-appender = "0.2.3"
 tracing-subscriber = "0.3.17"
