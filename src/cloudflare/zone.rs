@@ -1,6 +1,7 @@
 //! Partial implementation, only contains fields that we'll use
 
 use const_format::concatcp;
+use reqwest::IntoUrl;
 use serde::{Deserialize, Serialize};
 
 use crate::cloudflare::client::{ApiRequest, BASE_URL};
@@ -20,7 +21,7 @@ impl ApiRequest for ListZones {
     type Query = ();
     type Response = Vec<Zone>;
 
-    fn url(&self) -> &str {
+    fn url(&self) -> impl IntoUrl {
         concatcp!(BASE_URL, "/zones")
     }
 }

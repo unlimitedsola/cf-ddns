@@ -1,5 +1,3 @@
-#![cfg(windows)]
-
 use anyhow::Result;
 use clap::Subcommand;
 
