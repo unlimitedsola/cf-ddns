@@ -3,7 +3,7 @@
 use std::net::IpAddr::{V4, V6};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
-use reqwest::Method;
+use reqwest::{IntoUrl, Method};
 use serde::{Deserialize, Serialize};
 
 use crate::cloudflare::client::{ApiRequest, BASE_URL};
@@ -14,6 +14,7 @@ pub struct DnsRecord {
     /// DNS record identifier tag
     pub id: String,
     /// DNS record name
+    #[allow(dead_code)] // for future use
     pub name: String,
     /// Type of the DNS record that also holds the record value
     #[serde(flatten)]
@@ -58,7 +59,7 @@ impl<'a> ApiRequest for ListDnsRecords<'a> {
     type Request = ();
     type Query = ListDnsRecordsParams<'a>;
     type Response = Vec<DnsRecord>;
-    fn url(&self) -> String {
+    fn url(&self) -> impl IntoUrl {
         format!("{}/zones/{}/dns_records", BASE_URL, self.zone_identifier)
     }
     fn query(&self) -> Option<&Self::Query> {
@@ -95,7 +96,7 @@ impl<'a> ApiRequest for CreateDnsRecord<'a> {
     fn method(&self) -> Method {
         Method::POST
     }
-    fn url(&self) -> String {
+    fn url(&self) -> impl IntoUrl {
         format!("{}/zones/{}/dns_records", BASE_URL, self.zone_identifier)
     }
     fn body(&self) -> Option<&Self::Request> {
@@ -131,7 +132,7 @@ impl<'a> ApiRequest for UpdateDnsRecord<'a> {
     fn method(&self) -> Method {
         Method::PATCH
     }
-    fn url(&self) -> String {
+    fn url(&self) -> impl IntoUrl {
         format!(
             "{}/zones/{}/dns_records/{}",
             BASE_URL, self.zone_identifier, self.identifier

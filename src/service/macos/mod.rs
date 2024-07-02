@@ -1,5 +1,3 @@
-#![cfg(target_os = "macos")]
-
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use tokio::signal::ctrl_c;
