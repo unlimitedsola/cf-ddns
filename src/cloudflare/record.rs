@@ -14,6 +14,7 @@ pub struct DnsRecord {
     /// DNS record identifier tag
     pub id: String,
     /// DNS record name
+    #[allow(dead_code)] // for future use
     pub name: String,
     /// Type of the DNS record that also holds the record value
     #[serde(flatten)]
