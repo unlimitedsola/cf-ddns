@@ -17,7 +17,7 @@ service = ["dep:windows", "tokio/signal"]
 anyhow = "1.0.89"
 clap = { version = "4.5.20", features = ["derive"] }
 const_format = "0.2.33"
-futures = "0.3.30"
+futures = "0.3.31"
 reqwest = { version = "0.12.8", default-features = false, features = ["rustls-tls", "json"] }
 serde = { version = "1.0.210", features = ["derive", "rc"] }
 serde_json = "1.0.128"
