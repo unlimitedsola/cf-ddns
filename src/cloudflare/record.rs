@@ -47,11 +47,11 @@ pub struct ListDnsRecords<'a> {
     pub params: ListDnsRecordsParams<'a>,
 }
 
-#[serde_with::skip_serializing_none]
 #[derive(Serialize, Clone, Debug, Default)]
 pub struct ListDnsRecordsParams<'a> {
-    #[serde(rename = "type")]
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub record_type: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<&'a str>,
 }
 
@@ -74,12 +74,13 @@ pub struct CreateDnsRecord<'a> {
     pub params: CreateDnsRecordParams<'a>,
 }
 
-#[serde_with::skip_serializing_none]
 #[derive(Serialize, Clone, Debug)]
 pub struct CreateDnsRecordParams<'a> {
     /// Time to live for DNS record. Value of 1 is 'automatic'
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ttl: Option<u32>,
     /// Whether the record is receiving the performance and security benefits of Cloudflare
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub proxied: Option<bool>,
     /// DNS record name
     pub name: &'a str,
@@ -112,7 +113,6 @@ pub struct UpdateDnsRecord<'a> {
     pub params: UpdateDnsRecordParams<'a>,
 }
 
-#[serde_with::skip_serializing_none]
 #[derive(Serialize, Clone, Debug)]
 pub struct UpdateDnsRecordParams<'a> {
     /// DNS record name
