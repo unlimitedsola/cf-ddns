@@ -37,18 +37,18 @@ Here is an example configuration file:
 
 ```toml
 token = "<your-cloudflare-token>"
-[[zones]]
+[[records]]
 name = "abc.example.com"
 zone = "example.com"
 v4 = true
 v6 = true
 
-[[zones]]
+[[records]]
 name = "v4.example.net"
 zone = "example.net"
 v4 = true
 
-[[zones]]
+[[records]]
 name = "v6.example.net"
 zone = "example.net"
 v6 = true
@@ -56,7 +56,7 @@ v6 = true
 
 Replace `<your-cloudflare-token>` with your CloudFlare token.
 
-The `zones` section is a list of zones, each containing the following fields:
+The `records` section is a list of records, each containing the following fields:
 
 - `name` will be the full DNS record name, e.g., `abc.example.com`.
 - `zone` is the zone name, e.g., `example.com`.

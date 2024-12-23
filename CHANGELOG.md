@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Re-license under the GNU Affero General Public License v3.0 or later.
+  This change is to ensure that the software remains open-source and free for everyone.
+- Renamed the `zones` configuration property to `records` for accuracy.
+  It is recommended to update the configuration file accordingly.
+  The old name is still supported for backward compatibility, it is planned to be removed in the upcoming releases.
 
 ## [0.3.0] - 2024-05-19
 

@@ -16,8 +16,9 @@ pub struct RawConfig {
     lookup: LookupConfig,
     #[serde(default)]
     interval: Interval,
-    #[serde(default)]
-    zones: Vec<RawRecordConfig>,
+    // FIXME: remove the backward compatibility alias in a future version
+    #[serde(default, alias = "zones")]
+    records: Vec<RawRecordConfig>,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
@@ -68,7 +69,7 @@ impl RawConfig {
 impl From<RawConfig> for Config {
     fn from(value: RawConfig) -> Self {
         let mut records = crate::config::Records::default();
-        for rec in value.zones {
+        for rec in value.records {
             let zone_record = crate::config::ZoneRecord {
                 zone: rec.zone,
                 name: rec.name,
@@ -102,7 +103,7 @@ mod tests {
         .unwrap();
         assert_eq!(cfg.lookup, LookupConfig::default());
         assert_eq!(cfg.interval, Interval::default());
-        assert!(cfg.zones.is_empty());
+        assert!(cfg.records.is_empty());
     }
 
     #[test]
@@ -117,7 +118,7 @@ mod tests {
         .unwrap();
         assert_eq!(cfg.lookup, LookupConfig::default());
         assert_eq!(cfg.interval, Interval(60));
-        assert!(cfg.zones.is_empty());
+        assert!(cfg.records.is_empty());
     }
 
     #[test]
@@ -134,32 +135,32 @@ mod tests {
     }
 
     #[test]
-    fn zones() {
+    fn records() {
         let cfg = RawConfig::from_toml(
             // language=toml
             r#"
                 token = "test"
-                [[zones]]
+                [[records]]
                 name = "www.example.com"
                 zone = "example.com"
-                [[zones]]
+                [[records]]
                 name = "v4.example.com"
                 zone = "example.com"
                 v4 = true
-                [[zones]]
+                [[records]]
                 name = "v6.example.com"
                 zone = "example.com"
                 v6 = true
             "#,
         )
         .unwrap();
-        let www = &cfg.zones[0];
+        let www = &cfg.records[0];
         assert!(!www.v4);
         assert!(!www.v6);
-        let v4 = &cfg.zones[1];
+        let v4 = &cfg.records[1];
         assert!(v4.v4);
         assert!(!v4.v6);
-        let v6 = &cfg.zones[2];
+        let v6 = &cfg.records[2];
         assert!(!v6.v4);
         assert!(v6.v6);
     }

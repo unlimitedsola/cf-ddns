@@ -7,39 +7,39 @@ token = "<your-cloudflare-token>"
 # currently only icanhazip is supported
 # lookup: "icanhazip"
 
-# list of zones to update
+# list of records to update
 # name: full domain name, e.g. abc.example.com
 # zone: zone name in cloudflare, e.g. example.com
 # v4: update A record
 # v6: update AAAA record
-[[zones]]
+[[records]]
 name = "abc.example.com"
 zone = "example.com"
 v4 = true
 v6 = true
 
-[[zones]]
+[[records]]
 name = "v4.example.com"
 zone = "example.com"
 v4 = true
 
-[[zones]]
+[[records]]
 name = "v6.example.com"
 zone = "example.com"
 v6 = true
 
-[[zones]]
+[[records]]
 name = "abc.example.net"
 zone = "example.net"
 v4 = true
 v6 = true
 
-[[zones]]
+[[records]]
 name = "v4.example.net"
 zone = "example.net"
 v4 = true
 
-[[zones]]
+[[records]]
 name = "v6.example.net"
 zone = "example.net"
 v6 = true
