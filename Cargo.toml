@@ -14,7 +14,7 @@ default = ["service"]
 service = ["dep:windows", "tokio/signal"]
 
 [dependencies]
-anyhow = "1.0.95"
+anyhow = "1.0.96"
 clap = { version = "4.5.30", features = ["derive"] }
 const_format = "0.2.34"
 futures = "0.3.31"
