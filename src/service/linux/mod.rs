@@ -3,8 +3,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use tokio::signal::ctrl_c;
 
-use crate::service::linux::install::{install, uninstall};
 use crate::AppContext;
+use crate::service::linux::install::{install, uninstall};
 
 mod install;
 

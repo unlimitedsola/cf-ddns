@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+use crate::AppContext;
 #[cfg(feature = "service")]
 use crate::service::ServiceCommand;
-use crate::AppContext;
 
 #[derive(Debug, Parser)]
 #[command(name = "cf-ddns")]

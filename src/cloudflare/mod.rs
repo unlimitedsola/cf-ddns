@@ -3,8 +3,8 @@
 use std::net::IpAddr;
 
 use anyhow::Result;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::ClientBuilder;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 
 use crate::cloudflare::record::{
     CreateDnsRecord, CreateDnsRecordParams, DnsRecord, ListDnsRecords, ListDnsRecordsParams,

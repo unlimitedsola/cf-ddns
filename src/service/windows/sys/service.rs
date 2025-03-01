@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
-use windows::core::{HSTRING, PWSTR};
 use windows::Win32::System::Services;
 use windows::Win32::System::Services::{SERVICE_CONFIG_DESCRIPTION, SERVICE_DESCRIPTIONW};
+use windows::core::{HSTRING, PWSTR};
 
 use crate::service::windows::sys::ScHandle;
 

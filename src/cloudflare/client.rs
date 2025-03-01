@@ -1,7 +1,7 @@
 //! Client exchange implementation for CloudFlare API
 
-use anyhow::bail;
 use anyhow::Result;
+use anyhow::bail;
 use reqwest::{IntoUrl, Method};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};

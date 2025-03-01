@@ -7,9 +7,9 @@ use tracing::info;
 use tracing_appender::rolling::RollingFileAppender;
 
 use crate::cli::Cli;
-use crate::service::windows::sys::run;
 use crate::service::windows::SERVICE_NAME;
-use crate::{current_exe, AppContext};
+use crate::service::windows::sys::run;
+use crate::{AppContext, current_exe};
 
 pub fn run_as_service() -> Result<()> {
     let file_appender = RollingFileAppender::builder()

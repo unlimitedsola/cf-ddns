@@ -2,15 +2,15 @@
 
 use std::sync::{Mutex, MutexGuard};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use futures::channel::oneshot;
 use futures::channel::oneshot::{Receiver, Sender};
 use tracing::{error, info};
-use windows::core::{HSTRING, PWSTR};
 use windows::Win32::System::Services;
 use windows::Win32::System::Services::{
     SERVICE_ACCEPT_STOP, SERVICE_RUNNING, SERVICE_STATUS, SERVICE_WIN32_OWN_PROCESS,
 };
+use windows::core::{HSTRING, PWSTR};
 
 use crate::service::windows::sys::control::{register, start};
 use crate::service::windows::sys::helper::parse_service_entry_arguments;

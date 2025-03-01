@@ -3,18 +3,18 @@ use std::net::IpAddr;
 use std::rc::Rc;
 
 use anyhow::Result;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use futures::future::join_all;
 use futures::join;
 use tracing::{error, info, warn};
 
-use crate::cloudflare::record::DnsRecord;
+use crate::AppContext;
 use crate::cloudflare::CloudFlare;
+use crate::cloudflare::record::DnsRecord;
 use crate::config::{Records, ZoneRecord};
 use crate::lookup::{Lookup, Provider};
 use crate::updater::id_cache::IdCache;
 use crate::updater::lookup_cache::{LookupCache, UpdateResult};
-use crate::AppContext;
 
 mod id_cache;
 mod lookup_cache;

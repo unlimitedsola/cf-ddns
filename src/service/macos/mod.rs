@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use tokio::signal::ctrl_c;
 
-use crate::service::macos::install::{install, uninstall};
 use crate::AppContext;
+use crate::service::macos::install::{install, uninstall};
 
 mod install;
 

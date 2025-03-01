@@ -2,13 +2,13 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::null_mut;
 
-use anyhow::{bail, Result};
-use windows::core::PWSTR;
+use anyhow::{Result, bail};
 use windows::Wdk::System::SystemInformation::{NtQuerySystemInformation, SystemProcessInformation};
 use windows::Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation};
 use windows::Win32::Foundation::STATUS_INFO_LENGTH_MISMATCH;
 use windows::Win32::System::Threading::{GetCurrentProcess, PROCESS_BASIC_INFORMATION};
 use windows::Win32::System::WindowsProgramming::SYSTEM_PROCESS_INFORMATION;
+use windows::core::PWSTR;
 
 /// Convert Windows service entry arguments to a Rust `Vec<String>`.
 ///

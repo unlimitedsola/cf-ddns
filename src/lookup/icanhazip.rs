@@ -37,8 +37,8 @@ impl Lookup for ICanHazIp {
 
 #[cfg(test)]
 mod tests {
-    use crate::lookup::icanhazip::ICanHazIp;
     use crate::lookup::Lookup;
+    use crate::lookup::icanhazip::ICanHazIp;
 
     #[tokio::test]
     #[ignore]
