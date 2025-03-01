@@ -17,7 +17,7 @@ impl Service {
 
     /// Starts the service.
     ///
-    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-startservicew
+    /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-startservicew>
     pub fn start(self) -> Result<()> {
         unsafe { Services::StartServiceW(self.handle.raw_handle(), None) }
             .context("Failed to start service")
@@ -26,7 +26,7 @@ impl Service {
     /// Deletes the service from the service control manager.
     /// This should also stop the service if it is running.
     ///
-    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-deleteservice
+    /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-deleteservice>
     pub fn delete(self) -> Result<()> {
         unsafe { Services::DeleteService(self.handle.raw_handle()) }
             .context("Failed to delete service")
@@ -34,7 +34,7 @@ impl Service {
 
     /// Updates the description of the service.
     ///
-    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-changeserviceconfig2w
+    /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-changeserviceconfig2w>
     pub fn update_description(&self, desc: &str) -> Result<()> {
         let w_desc = HSTRING::from(desc);
         unsafe {

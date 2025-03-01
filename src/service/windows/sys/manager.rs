@@ -16,7 +16,7 @@ pub struct ServiceManager {
 impl ServiceManager {
     /// Open the local computer's service control manager
     ///
-    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-openscmanagerw
+    /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-openscmanagerw>
     pub fn local_computer() -> Result<Self> {
         let handle = unsafe {
             let handle = Services::OpenSCManagerW(
@@ -47,7 +47,7 @@ impl ServiceManager {
 
 /// Config holder for creating a new service
 ///
-/// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-createservicew
+/// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-createservicew>
 pub struct ServiceCreateConfig<'a> {
     pub name: &'a str,
     pub display_name: &'a str,
@@ -60,7 +60,7 @@ pub struct ServiceCreateConfig<'a> {
 impl ServiceManager {
     /// Create a new service
     ///
-    /// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-createservicew
+    /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-createservicew>
     pub fn create_service(&self, config: ServiceCreateConfig) -> Result<Service> {
         let handle = unsafe {
             let handle = Services::CreateServiceW(

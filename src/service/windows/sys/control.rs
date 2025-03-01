@@ -9,7 +9,7 @@ pub type ServiceMain = extern "system" fn(argc: u32, argv: *mut PWSTR) -> ();
 /// the thread to be the service control dispatcher thread for the calling process. This call
 /// returns when the service has stopped. The process should simply terminate when the call returns.
 ///
-/// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-startservicectrldispatcherw
+/// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-startservicectrldispatcherw>
 pub fn start(name: &str, entry: ServiceMain) -> Result<()> {
     let w_name = HSTRING::from(name);
     let entry_table = &[
@@ -57,7 +57,7 @@ type ControlHandler = extern "system" fn(control: u32) -> ();
 ///
 /// This function uses the simpler variant of the `RegisterServiceCtrlHandler` functions for simplicity.
 ///
-/// https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-registerservicectrlhandlerw
+/// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-registerservicectrlhandlerw>
 pub fn register(name: &HSTRING, handler: ControlHandler) -> Result<ServiceStatusHandle> {
     let status_handle = unsafe { Services::RegisterServiceCtrlHandlerW(name, Some(handler))? };
 
