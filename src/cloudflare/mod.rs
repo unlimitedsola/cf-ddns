@@ -1,6 +1,7 @@
 //! Extremely simplified Cloudflare API client for own use.
 
 use std::net::IpAddr;
+use std::time::Duration;
 
 use anyhow::Result;
 use reqwest::ClientBuilder;
@@ -29,7 +30,10 @@ impl CloudFlare {
             HeaderValue::try_from(format!("Bearer {token}"))?,
         );
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        let http = ClientBuilder::new().default_headers(headers).build()?;
+        let http = ClientBuilder::new()
+            .default_headers(headers)
+            .timeout(Duration::from_secs(60))
+            .build()?;
         Ok(CloudFlare { http })
     }
 }

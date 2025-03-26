@@ -1,5 +1,6 @@
 use std::net::{AddrParseError, Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
+use std::time::Duration;
 
 use anyhow::{Context, Result};
 use reqwest::Client;
@@ -12,7 +13,10 @@ pub struct ICanHazIp {
 
 impl ICanHazIp {
     pub fn new() -> Result<Self> {
-        let client = Client::builder().no_proxy().build()?;
+        let client = Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(60))
+            .build()?;
         Ok(Self { client })
     }
 }
