@@ -88,10 +88,10 @@ pub extern "system" fn ffi_control_handler(control: u32) {
     if control == Services::SERVICE_CONTROL_STOP {
         info!("Sending stop signal to service worker...");
         let cancel = running_service().as_mut().and_then(|svc| svc.cancel.take());
-        if let Some(cancel) = cancel {
-            if let Err(e) = cancel.send(()) {
-                error!("Failed to send stop signal to service worker: {e:?}");
-            }
+        if let Some(cancel) = cancel
+            && let Err(e) = cancel.send(())
+        {
+            error!("Failed to send stop signal to service worker: {e:?}");
         }
     }
 }
