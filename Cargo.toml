@@ -22,7 +22,7 @@ reqwest = { version = "0.12.28", default-features = false, features = ["rustls-t
 serde = { version = "1.0.228", features = ["derive", "rc"] }
 serde_json = "1.0.148"
 tokio = { version = "1.49.0", features = ["rt", "macros"] }
-tokio-stream = "0.1.17"
+tokio-stream = "0.1.18"
 toml = "0.9.10"
 tracing = "0.1.44"
 tracing-appender = "0.2.4"
