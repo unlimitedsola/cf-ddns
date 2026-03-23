@@ -1,6 +1,7 @@
 use std::cell::RefCell;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::rc::Rc;
+use std::time::Duration;
 
 use anyhow::Result;
 use anyhow::{Context, anyhow};
@@ -11,7 +12,7 @@ use tracing::{error, info, warn};
 use crate::AppContext;
 use crate::cloudflare::CloudFlare;
 use crate::cloudflare::record::DnsRecord;
-use crate::config::{Records, ZoneRecord};
+use crate::config::{Records, RetryConfig, ZoneRecord};
 use crate::lookup::{Lookup, Provider};
 use crate::updater::id_cache::IdCache;
 use crate::updater::lookup_cache::{LookupCache, UpdateResult};
@@ -31,6 +32,8 @@ pub struct Updater {
     // memory barriers and atomic operations instead.
     id_cache: RefCell<IdCache>,
     lookup_cache: RefCell<LookupCache>,
+    retry: RetryConfig,
+    interval: Duration,
 }
 
 impl AppContext {
@@ -48,8 +51,11 @@ impl AppContext {
             cf,
             id_cache,
             lookup_cache,
+            retry: self.config.retry,
+            interval: self.config.interval,
         })
     }
+
     pub async fn update(&self, name: Option<&str>) -> Result<()> {
         let updater = self.new_updater()?;
         match name {
@@ -73,30 +79,63 @@ impl Updater {
             return;
         }
 
-        let addr = match self.lookup.lookup_v4().await {
-            Ok(res) => res,
-            Err(e) => {
-                error!("Failed to lookup the current IPv4 address: {e}");
-                return;
+        let mut staged: Option<Ipv4Addr> = None;
+        let mut attempt: u32 = 0;
+
+        loop {
+            attempt = attempt.saturating_add(1);
+
+            // Perform lookup only when we don't have a staged IP yet.
+            if staged.is_none() {
+                match self.lookup.lookup_v4().await {
+                    Ok(addr) => {
+                        match self.lookup_cache.borrow_mut().update_v4(addr) {
+                            UpdateResult::Initialized => info!("Current IPv4: {addr}"),
+                            UpdateResult::Updated(old) => {
+                                info!("Current IPv4: {addr} (was {old})");
+                            }
+                            UpdateResult::Unchanged => {
+                                info!("Current IPv4: {addr} (unchanged, skipping update)");
+                                return;
+                            }
+                        }
+                        staged = Some(addr);
+                    }
+                    Err(e) => {
+                        error!("Failed to lookup current IPv4 address: {e}");
+                    }
+                }
             }
-        };
-        match self.lookup_cache.borrow_mut().update_v4(&addr) {
-            UpdateResult::Initialized => info!("Current IPv4: {addr}"),
-            UpdateResult::Updated(old) => {
-                info!("Current IPv4: {addr} (was {old})");
+
+            // DNS update with the staged IP (no re-lookup on retry).
+            if let Some(addr) = staged {
+                let results = join_all(
+                    records
+                        .iter()
+                        .map(|rec| self.update_record_print(rec, addr.into())),
+                )
+                .await;
+
+                if results.iter().all(|&s| s) {
+                    return;
+                }
             }
-            UpdateResult::Unchanged => {
-                info!("Current IPv4: {addr} (unchanged, skipping update)");
-                return;
+
+            // Retry only if within budget and the next delay fits within the current interval.
+            let delay = backoff_delay(attempt, self.retry.base_delay, self.retry.backoff_multiplier);
+            if attempt < self.retry.max_attempts && delay < self.interval {
+                warn!("Retrying IPv4 in {:.1}s...", delay.as_secs_f64());
+                tokio::time::sleep(delay).await;
+            } else {
+                break;
             }
         }
-        let addr = addr.into();
-        join_all(
-            records
-                .iter()
-                .map(|rec| self.update_record_print(rec, addr)),
-        )
-        .await;
+
+        if staged.is_some() {
+            error!("IPv4 DNS update failed, giving up until next interval");
+        } else {
+            error!("IPv4 lookup failed, giving up until next interval");
+        }
     }
 
     async fn update_v6(&self, records: &[ZoneRecord]) {
@@ -104,33 +143,66 @@ impl Updater {
             return;
         }
 
-        let addr = match self.lookup.lookup_v6().await {
-            Ok(res) => res,
-            Err(e) => {
-                error!("Failed to lookup the current IPv6 address: {e}");
-                return;
+        let mut staged: Option<Ipv6Addr> = None;
+        let mut attempt: u32 = 0;
+
+        loop {
+            attempt = attempt.saturating_add(1);
+
+            // Perform lookup only when we don't have a staged IP yet.
+            if staged.is_none() {
+                match self.lookup.lookup_v6().await {
+                    Ok(addr) => {
+                        match self.lookup_cache.borrow_mut().update_v6(addr) {
+                            UpdateResult::Initialized => info!("Current IPv6: {addr}"),
+                            UpdateResult::Updated(old) => {
+                                info!("Current IPv6: {addr} (was {old})");
+                            }
+                            UpdateResult::Unchanged => {
+                                info!("Current IPv6: {addr} (unchanged, skipping update)");
+                                return;
+                            }
+                        }
+                        staged = Some(addr);
+                    }
+                    Err(e) => {
+                        error!("Failed to lookup current IPv6 address: {e}");
+                    }
+                }
             }
-        };
-        match self.lookup_cache.borrow_mut().update_v6(&addr) {
-            UpdateResult::Initialized => info!("Current IPv6: {addr}"),
-            UpdateResult::Updated(old) => {
-                info!("Current IPv6: {addr} (was {old})");
+
+            // DNS update with the staged IP (no re-lookup on retry).
+            if let Some(addr) = staged {
+                let results = join_all(
+                    records
+                        .iter()
+                        .map(|rec| self.update_record_print(rec, addr.into())),
+                )
+                .await;
+
+                if results.iter().all(|&s| s) {
+                    return;
+                }
             }
-            UpdateResult::Unchanged => {
-                info!("Current IPv6: {addr} (unchanged, skipping update)");
-                return;
+
+            // Retry only if within budget and the next delay fits within the current interval.
+            let delay = backoff_delay(attempt, self.retry.base_delay, self.retry.backoff_multiplier);
+            if attempt < self.retry.max_attempts && delay < self.interval {
+                warn!("Retrying IPv6 in {:.1}s...", delay.as_secs_f64());
+                tokio::time::sleep(delay).await;
+            } else {
+                break;
             }
         }
-        let addr = addr.into();
-        join_all(
-            records
-                .iter()
-                .map(|rec| self.update_record_print(rec, addr)),
-        )
-        .await;
+
+        if staged.is_some() {
+            error!("IPv6 DNS update failed, giving up until next interval");
+        } else {
+            error!("IPv6 lookup failed, giving up until next interval");
+        }
     }
 
-    async fn update_record_print(&self, rec: &ZoneRecord, addr: IpAddr) {
+    async fn update_record_print(&self, rec: &ZoneRecord, addr: IpAddr) -> bool {
         let rec_type = match addr {
             IpAddr::V4(_) => "A",
             IpAddr::V6(_) => "AAAA",
@@ -139,9 +211,11 @@ impl Updater {
         match self.update_record(rec, addr).await {
             Err(e) => {
                 error!("Failed to update {rec_type} record '{}': {e}", rec.name);
+                false
             }
             Ok(_) => {
                 info!("Updated {rec_type} record '{}'", rec.name);
+                true
             }
         }
     }
@@ -217,5 +291,58 @@ impl Updater {
             .into_iter()
             .for_each(|rec| cache.update_record(name, rec));
         cache.save()
+    }
+}
+
+/// Calculates the backoff delay for a given attempt number.
+///
+/// Formula: `base_delay * multiplier^(attempt - 1)`.
+/// Attempt 1 returns `base_delay` unchanged.
+/// Returns `Duration::MAX` on overflow (caller interprets this as "give up").
+pub(crate) fn backoff_delay(attempt: u32, retry_interval: Duration, multiplier: f64) -> Duration {
+    let exp = attempt.saturating_sub(1).min(i32::MAX as u32) as i32;
+    let delay = retry_interval.as_secs_f64() * multiplier.powi(exp);
+    if delay.is_finite() {
+        Duration::from_secs_f64(delay)
+    } else {
+        Duration::MAX
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backoff_first_attempt_is_base_delay() {
+        let interval = Duration::from_secs(5);
+        assert_eq!(backoff_delay(1, interval, 2.0), Duration::from_secs(5));
+    }
+
+    #[test]
+    fn backoff_doubles_each_attempt() {
+        let interval = Duration::from_secs(5);
+        assert_eq!(backoff_delay(1, interval, 2.0), Duration::from_secs(5));
+        assert_eq!(backoff_delay(2, interval, 2.0), Duration::from_secs(10));
+        assert_eq!(backoff_delay(3, interval, 2.0), Duration::from_secs(20));
+        assert_eq!(backoff_delay(4, interval, 2.0), Duration::from_secs(40));
+        assert_eq!(backoff_delay(5, interval, 2.0), Duration::from_secs(80));
+    }
+
+    #[test]
+    fn backoff_respects_multiplier() {
+        let interval = Duration::from_secs(10);
+        assert_eq!(backoff_delay(1, interval, 3.0), Duration::from_secs(10));
+        assert_eq!(backoff_delay(2, interval, 3.0), Duration::from_secs(30));
+        assert_eq!(backoff_delay(3, interval, 3.0), Duration::from_secs(90));
+    }
+
+    #[test]
+    fn backoff_overflow_returns_max() {
+        // Very large attempt count overflows f64 to infinity → Duration::MAX
+        assert_eq!(
+            backoff_delay(u32::MAX, Duration::from_secs(5), 2.0),
+            Duration::MAX
+        );
     }
 }

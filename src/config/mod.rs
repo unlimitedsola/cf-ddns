@@ -14,7 +14,15 @@ pub struct Config {
     pub token: String,
     pub lookup: LookupConfig,
     pub interval: Duration,
+    pub retry: RetryConfig,
     pub records: Records,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RetryConfig {
+    pub base_delay: Duration,
+    pub backoff_multiplier: f64,
+    pub max_attempts: u32,
 }
 
 impl Config {

@@ -13,25 +13,25 @@ pub enum UpdateResult<T> {
 }
 
 impl LookupCache {
-    pub fn update_v4(&mut self, v4: &Ipv4Addr) -> UpdateResult<Ipv4Addr> {
+    pub fn update_v4(&mut self, v4: Ipv4Addr) -> UpdateResult<Ipv4Addr> {
         if let Some(prev) = self.v4
-            && &prev == v4
+            && prev == v4
         {
             return UpdateResult::Unchanged;
         }
-        match self.v4.replace(*v4) {
+        match self.v4.replace(v4) {
             None => UpdateResult::Initialized,
             Some(old) => UpdateResult::Updated(old),
         }
     }
 
-    pub fn update_v6(&mut self, v6: &Ipv6Addr) -> UpdateResult<Ipv6Addr> {
+    pub fn update_v6(&mut self, v6: Ipv6Addr) -> UpdateResult<Ipv6Addr> {
         if let Some(prev) = self.v6
-            && &prev == v6
+            && prev == v6
         {
             return UpdateResult::Unchanged;
         }
-        match self.v6.replace(*v6) {
+        match self.v6.replace(v6) {
             None => UpdateResult::Initialized,
             Some(old) => UpdateResult::Updated(old),
         }

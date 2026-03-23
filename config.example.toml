@@ -5,17 +5,29 @@ token = "<your-cloudflare-token>"
 
 # lookup provider for retrieving public IP
 # currently only icanhazip is supported
-# lookup: "icanhazip"
+# lookup = "icanhazip"
 
-# list of records to update
-# name: full domain name, e.g. abc.example.com
-# zone: zone name in cloudflare, e.g. example.com
-# v4: update A record
-# v6: update AAAA record
+# Retry configuration for failed updates.
+[retry]
+# base delay in seconds before the first retry attempt
+# base_delay = 5
+
+# multiplier applied after each failed attempt
+# backoff_multiplier = 2.0
+
+# stop retrying after this many total attempts
+# the interval also acts as a safeguard: retries stop if the next delay >= interval
+# max_attempts = 5
+
+# List of records to update
 [[records]]
+# full domain name, e.g. abc.example.com
 name = "abc.example.com"
+# zone name in CloudFlare, e.g. example.com
 zone = "example.com"
+# update A record
 v4 = true
+# update AAAA record
 v6 = true
 
 [[records]]
