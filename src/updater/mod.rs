@@ -122,7 +122,11 @@ impl Updater {
             }
 
             // Retry only if within budget and the next delay fits within the current interval.
-            let delay = backoff_delay(attempt, self.retry.base_delay, self.retry.backoff_multiplier);
+            let delay = backoff_delay(
+                attempt,
+                self.retry.base_delay,
+                self.retry.backoff_multiplier,
+            );
             if attempt < self.retry.max_attempts && delay < self.interval {
                 warn!("Retrying IPv4 in {:.1}s...", delay.as_secs_f64());
                 tokio::time::sleep(delay).await;
@@ -186,7 +190,11 @@ impl Updater {
             }
 
             // Retry only if within budget and the next delay fits within the current interval.
-            let delay = backoff_delay(attempt, self.retry.base_delay, self.retry.backoff_multiplier);
+            let delay = backoff_delay(
+                attempt,
+                self.retry.base_delay,
+                self.retry.backoff_multiplier,
+            );
             if attempt < self.retry.max_attempts && delay < self.interval {
                 warn!("Retrying IPv6 in {:.1}s...", delay.as_secs_f64());
                 tokio::time::sleep(delay).await;
