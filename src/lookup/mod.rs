@@ -12,22 +12,29 @@ pub trait LookupSpec {
     async fn lookup_v6(&self) -> Result<Ipv6Addr>;
 }
 
-pub enum Lookup {
+/// Holds per-protocol lookup providers.
+pub struct Lookup {
+    pub v4: Provider,
+    pub v6: Provider,
+}
+
+/// Lookup provider for a single protocol.
+pub enum Provider {
     ICanHazIp(ICanHazIp),
     Exec(ExecLookup),
 }
 
 impl LookupSpec for Lookup {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
-        match self {
-            Lookup::ICanHazIp(i) => i.lookup_v4().await,
-            Lookup::Exec(e) => e.lookup_v4().await,
+        match &self.v4 {
+            Provider::ICanHazIp(i) => i.lookup_v4().await,
+            Provider::Exec(e) => e.lookup_v4().await,
         }
     }
     async fn lookup_v6(&self) -> Result<Ipv6Addr> {
-        match self {
-            Lookup::ICanHazIp(i) => i.lookup_v6().await,
-            Lookup::Exec(e) => e.lookup_v6().await,
+        match &self.v6 {
+            Provider::ICanHazIp(i) => i.lookup_v6().await,
+            Provider::Exec(e) => e.lookup_v6().await,
         }
     }
 }

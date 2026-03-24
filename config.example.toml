@@ -4,8 +4,10 @@ token = "<your-cloudflare-token>"
 # interval = 300
 
 # lookup provider for retrieving public IP
-# currently only icanhazip is supported
-# lookup = "icanhazip"
+# defaults to icanhazip for both v4 and v6; configure per-protocol with:
+[lookup]
+# v4 = "icanhazip"
+# v6 = { provider = "exec", cmd = "curl -s ipv6.icanhazip.com" }
 
 # Retry configuration for failed updates.
 [retry]

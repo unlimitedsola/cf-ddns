@@ -2,9 +2,10 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use anyhow::Result;
+use serde::Deserialize;
 
 use crate::config::raw::RawConfig;
-use crate::lookup::{ExecLookup, ICanHazIp, Lookup};
+use crate::lookup::{ExecLookup, ICanHazIp, Lookup, Provider};
 
 mod raw;
 
@@ -31,21 +32,37 @@ impl Config {
     }
 }
 
+/// Per-protocol lookup provider configuration.
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
-pub enum LookupConfig {
+pub struct LookupConfig {
+    pub v4: ProviderConfig,
+    pub v6: ProviderConfig,
+}
+
+/// Lookup provider configuration for a single protocol.
+#[derive(Deserialize, Debug, Default, Clone, Eq, PartialEq)]
+#[serde(tag = "provider", rename_all = "lowercase")]
+pub enum ProviderConfig {
     #[default]
     ICanHazIp,
-    Exec {
-        v4: Option<String>,
-        v6: Option<String>,
-    },
+    /// Run a shell command and parse its stdout as an IP address.
+    Exec { cmd: String },
 }
 
 impl LookupConfig {
     pub fn into_lookup(self) -> Result<Lookup> {
+        Ok(Lookup {
+            v4: self.v4.into_provider()?,
+            v6: self.v6.into_provider()?,
+        })
+    }
+}
+
+impl ProviderConfig {
+    fn into_provider(self) -> Result<Provider> {
         match self {
-            LookupConfig::ICanHazIp => Ok(Lookup::ICanHazIp(ICanHazIp::new()?)),
-            LookupConfig::Exec { v4, v6 } => Ok(Lookup::Exec(ExecLookup::new(v4, v6))),
+            ProviderConfig::ICanHazIp => Ok(Provider::ICanHazIp(ICanHazIp::new()?)),
+            ProviderConfig::Exec { cmd } => Ok(Provider::Exec(ExecLookup::new(cmd))),
         }
     }
 }

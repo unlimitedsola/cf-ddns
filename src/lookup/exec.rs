@@ -5,22 +5,21 @@ use anyhow::{Context, Result, bail};
 use crate::lookup::LookupSpec;
 
 pub struct ExecLookup {
-    v4: Option<String>,
-    v6: Option<String>,
+    cmd: String,
 }
 
 impl ExecLookup {
-    pub fn new(v4: Option<String>, v6: Option<String>) -> Self {
-        Self { v4, v6 }
+    pub fn new(cmd: String) -> Self {
+        Self { cmd }
     }
 
-    async fn run(cmd: &str) -> Result<String> {
+    async fn run(&self) -> Result<String> {
         let output = tokio::process::Command::new(find_shell())
             .arg("-c")
-            .arg(cmd)
+            .arg(&self.cmd)
             .output()
             .await
-            .with_context(|| format!("failed to execute: {cmd}"))?;
+            .with_context(|| format!("failed to execute: {}", self.cmd))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -33,15 +32,13 @@ impl ExecLookup {
 
 impl LookupSpec for ExecLookup {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
-        let cmd = self.v4.as_deref().context("no v4 command configured")?;
-        let out = ExecLookup::run(cmd).await?;
+        let out = self.run().await?;
         out.parse()
             .with_context(|| format!("failed to parse IPv4 address from command output: {out:?}"))
     }
 
     async fn lookup_v6(&self) -> Result<Ipv6Addr> {
-        let cmd = self.v6.as_deref().context("no v6 command configured")?;
-        let out = ExecLookup::run(cmd).await?;
+        let out = self.run().await?;
         out.parse()
             .with_context(|| format!("failed to parse IPv6 address from command output: {out:?}"))
     }

@@ -5,46 +5,81 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer};
 
-use crate::config::{Config, LookupConfig, RetryConfig};
+use crate::config::{Config, LookupConfig, ProviderConfig, RetryConfig};
 use crate::current_exe;
 
 /// Raw deserialization form of [`LookupConfig`].
-/// Supports both `lookup = "icanhazip"` and `lookup = { provider = "icanhazip", ... }`.
+///
+/// Supports:
+/// - `[lookup] / v4 = ... / v6 = ...` — per-protocol configuration
+/// - `lookup = "icanhazip"` — sets both protocols to icanhazip (deprecated)
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum RawLookupConfig {
+    /// Per-protocol table: `[lookup] v4 = ... v6 = ...`
+    Split(RawSplitLookup),
+    /// Simple string shorthand: `lookup = "icanhazip"` sets both protocols.
+    ///
+    /// Deprecated: use `[lookup]` with explicit `v4`/`v6` keys instead.
     Simple(String),
-    Detailed(RawLookupDetailed),
+}
+
+#[derive(Deserialize, Default)]
+struct RawSplitLookup {
+    #[serde(default)]
+    v4: Option<RawProviderConfig>,
+    #[serde(default)]
+    v6: Option<RawProviderConfig>,
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "provider", rename_all = "lowercase")]
-enum RawLookupDetailed {
-    ICanHazIp,
-    Exec {
-        #[serde(default)]
-        v4: Option<String>,
-        #[serde(default)]
-        v6: Option<String>,
-    },
+#[serde(untagged)]
+enum RawProviderConfig {
+    /// Simple string: `v4 = "icanhazip"`
+    Simple(String),
+    /// Detailed table: `v4 = { provider = "exec", cmd = "..." }`
+    Detailed(ProviderConfig),
 }
 
 impl<'de> Deserialize<'de> for LookupConfig {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let raw = RawLookupConfig::deserialize(deserializer)?;
-        match raw {
+        match RawLookupConfig::deserialize(deserializer)? {
             RawLookupConfig::Simple(s) => match s.as_str() {
-                "icanhazip" => Ok(LookupConfig::ICanHazIp),
-                "exec" => Err(serde::de::Error::custom(
-                    r#"provider "exec" requires configuration: use `lookup = { provider = "exec", v4 = "...", v6 = "..." }`"#,
-                )),
-                _ => Err(serde::de::Error::unknown_variant(&s, &["icanhazip", "exec"])),
+                "icanhazip" => {
+                    tracing::warn!(
+                        "`lookup = \"icanhazip\"` is deprecated; \
+                         use `[lookup]` with explicit `v4`/`v6` keys instead"
+                    );
+                    Ok(LookupConfig::default())
+                }
+                _ => Err(serde::de::Error::unknown_variant(&s, &["icanhazip"])),
             },
-            RawLookupConfig::Detailed(d) => Ok(match d {
-                RawLookupDetailed::ICanHazIp => LookupConfig::ICanHazIp,
-                RawLookupDetailed::Exec { v4, v6 } => LookupConfig::Exec { v4, v6 },
+            RawLookupConfig::Split(split) => Ok(LookupConfig {
+                v4: split
+                    .v4
+                    .map(parse_single::<D::Error>)
+                    .transpose()?
+                    .unwrap_or_default(),
+                v6: split
+                    .v6
+                    .map(parse_single::<D::Error>)
+                    .transpose()?
+                    .unwrap_or_default(),
             }),
         }
+    }
+}
+
+fn parse_single<E: serde::de::Error>(raw: RawProviderConfig) -> Result<ProviderConfig, E> {
+    match raw {
+        RawProviderConfig::Simple(s) => match s.as_str() {
+            "icanhazip" => Ok(ProviderConfig::ICanHazIp),
+            "exec" => Err(E::custom(
+                r#"provider "exec" requires configuration: use `{ provider = "exec", cmd = "..." }`"#,
+            )),
+            _ => Err(E::unknown_variant(&s, &["icanhazip", "exec"])),
+        },
+        RawProviderConfig::Detailed(d) => Ok(d),
     }
 }
 
@@ -182,11 +217,7 @@ mod tests {
 
     #[test]
     fn minimal() {
-        let cfg = RawConfig::from_toml(
-            // language=toml
-            r#"token = "test""#,
-        )
-        .unwrap();
+        let cfg = RawConfig::from_toml(r#"token = "test""#).unwrap();
         assert_eq!(cfg.lookup, LookupConfig::default());
         assert_eq!(cfg.interval, Interval::default());
         assert_eq!(cfg.retry.base_delay, BaseDelay::default());
@@ -197,7 +228,6 @@ mod tests {
     #[test]
     fn overridden() {
         let cfg = RawConfig::from_toml(
-            // language=toml
             r#"
                 token = "test"
                 interval = 60
@@ -221,35 +251,20 @@ mod tests {
     }
 
     #[test]
-    fn lookup() {
+    fn lookup_icanhazip_string() {
         let cfg = RawConfig::from_toml(
-            // language=toml
             r#"
                 token = "test"
                 lookup = "icanhazip"
             "#,
         )
         .unwrap();
-        assert_eq!(cfg.lookup, LookupConfig::ICanHazIp);
-    }
-
-    #[test]
-    fn lookup_table_form() {
-        let cfg = RawConfig::from_toml(
-            // language=toml
-            r#"
-                token = "test"
-                lookup = { provider = "icanhazip" }
-            "#,
-        )
-        .unwrap();
-        assert_eq!(cfg.lookup, LookupConfig::ICanHazIp);
+        assert_eq!(cfg.lookup, LookupConfig::default());
     }
 
     #[test]
     fn lookup_unknown_provider() {
         let result = RawConfig::from_toml(
-            // language=toml
             r#"
                 token = "test"
                 lookup = "unknown-provider"
@@ -259,42 +274,95 @@ mod tests {
     }
 
     #[test]
-    fn lookup_exec_provider() {
+    fn lookup_split_v4_only() {
         let cfg = RawConfig::from_toml(
-            // language=toml
             r#"
                 token = "test"
                 [lookup]
-                provider = "exec"
-                v4 = "curl -s ipv4.icanhazip.com"
-                v6 = "curl -s ipv6.icanhazip.com"
+                v4 = "icanhazip"
             "#,
         )
         .unwrap();
         assert_eq!(
             cfg.lookup,
-            LookupConfig::Exec {
-                v4: Some("curl -s ipv4.icanhazip.com".to_owned()),
-                v6: Some("curl -s ipv6.icanhazip.com".to_owned()),
+            LookupConfig {
+                v4: ProviderConfig::ICanHazIp,
+                v6: ProviderConfig::ICanHazIp,
             }
         );
     }
 
     #[test]
-    fn lookup_exec_provider_partial() {
+    fn lookup_split_both_simple() {
         let cfg = RawConfig::from_toml(
-            // language=toml
             r#"
                 token = "test"
-                lookup = { provider = "exec", v4 = "dig +short myip.opendns.com @resolver1.opendns.com" }
+                [lookup]
+                v4 = "icanhazip"
+                v6 = "icanhazip"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(cfg.lookup, LookupConfig::default());
+    }
+
+    #[test]
+    fn lookup_split_exec_detailed() {
+        let cfg = RawConfig::from_toml(
+            r#"
+                token = "test"
+                [lookup]
+                v4 = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" }
+                v6 = { provider = "exec", cmd = "curl -s ipv6.icanhazip.com" }
             "#,
         )
         .unwrap();
         assert_eq!(
             cfg.lookup,
-            LookupConfig::Exec {
-                v4: Some("dig +short myip.opendns.com @resolver1.opendns.com".to_owned()),
-                v6: None,
+            LookupConfig {
+                v4: ProviderConfig::Exec { cmd: "curl -s ipv4.icanhazip.com".to_owned() },
+                v6: ProviderConfig::Exec { cmd: "curl -s ipv6.icanhazip.com".to_owned() },
+            }
+        );
+    }
+
+    #[test]
+    fn lookup_split_mixed() {
+        let cfg = RawConfig::from_toml(
+            r#"
+                token = "test"
+                [lookup]
+                v4 = "icanhazip"
+                v6 = { provider = "exec", cmd = "dig -6 +short myip.opendns.com @resolver1.opendns.com" }
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            cfg.lookup,
+            LookupConfig {
+                v4: ProviderConfig::ICanHazIp,
+                v6: ProviderConfig::Exec {
+                    cmd: "dig -6 +short myip.opendns.com @resolver1.opendns.com".to_owned(),
+                },
+            }
+        );
+    }
+
+    #[test]
+    fn lookup_split_icanhazip_detailed() {
+        let cfg = RawConfig::from_toml(
+            r#"
+                token = "test"
+                [lookup]
+                v4 = { provider = "icanhazip" }
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            cfg.lookup,
+            LookupConfig {
+                v4: ProviderConfig::ICanHazIp,
+                v6: ProviderConfig::ICanHazIp,
             }
         );
     }
@@ -302,7 +370,6 @@ mod tests {
     #[test]
     fn lookup_exec_bare_string_errors() {
         let result = RawConfig::from_toml(
-            // language=toml
             r#"
                 token = "test"
                 lookup = "exec"
@@ -312,9 +379,20 @@ mod tests {
     }
 
     #[test]
+    fn lookup_split_exec_bare_string_errors() {
+        let result = RawConfig::from_toml(
+            r#"
+                token = "test"
+                [lookup]
+                v4 = "exec"
+            "#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn records() {
         let cfg = RawConfig::from_toml(
-            // language=toml
             r#"
                 token = "test"
                 [[records]]
