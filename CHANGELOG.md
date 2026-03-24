@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `exec` lookup provider: run a shell command and use its stdout as the public IP address.
+  Useful when a custom method of IP discovery is needed.
+  ```toml
+  [lookup]
+  v4 = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" }
+  ```
+- Per-protocol lookup configuration: the `[lookup]` table now accepts separate `v4` and `v6` keys,
+  allowing each protocol to use a different provider. Each key accepts either a provider name
+  string or a full provider config table.
+  ```toml
+  [lookup]
+  v4 = "icanhazip"
+  v6 = { provider = "exec", cmd = "dig -6 +short myip.opendns.com @resolver1.opendns.com" }
+  ```
+- Retry configuration: a new `[retry]` section controls how failed updates are retried within
+  each interval. Retries stop when `max_attempts` is reached or the next backoff delay would
+  exceed the update interval, whichever comes first.
+  ```toml
+  [retry]
+  base_delay = 5        # seconds before the first retry (default: 5)
+  backoff_multiplier = 2.0  # exponential growth factor (default: 2.0)
+  max_attempts = 5      # total attempt budget per interval (default: 5)
+  ```
+
+### Fixed
+
+- Ensured proper connection timeouts on CloudFlare API and IP lookup requests to prevent
+  indefinitely hanging connections.
+
 ## [0.4.0] - 2024-12-23
 
 ### Changed

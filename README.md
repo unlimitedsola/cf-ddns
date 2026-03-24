@@ -7,7 +7,6 @@ It periodically checks the current public IP address and updates
 the DNS record if it has changed.
 
 [Rust]: https://www.rust-lang.org/
-
 [CloudFlare]: https://www.cloudflare.com/
 
 ## Features
@@ -78,6 +77,22 @@ Finally, run the binary to update the DNS records:
 ./cf-ddns
 ```
 
+### Lookup Providers
+
+The `lookup` setting controls how the public IP address is discovered.
+The default is `icanhazip`, which queries [icanhazip.com](https://icanhazip.com).
+
+You can also run a shell command and use its output as the IP address:
+
+```toml
+[lookup]
+v4 = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" }
+v6 = { provider = "exec", cmd = "curl -s ipv6.icanhazip.com" }
+```
+
+Each protocol can use a different provider.
+Omitting a protocol from `[lookup]` leaves it at the default (`icanhazip`).
+
 ## Install as a Service
 
 You can install `cf-ddns` as a service on your server or device.
@@ -91,12 +106,12 @@ To install the service, run the following command with administrative privileges
 
 > [!NOTE]
 > Based on your platform, this command will:
+>
 > - On Linux, install the [systemd unit file] to `/etc/systemd/system/cf-ddns.service`
 > - On macOS, install the [launchd plist file] to `/Library/LaunchDaemons/cf-ddns.plist`
 > - On Windows, install the service to the Windows Service Manager
 
 [systemd unit file]: ./src/service/linux/systemd.service
-
 [launchd plist file]: ./src/service/macos/launchd.plist
 
 > [!IMPORTANT]
@@ -115,7 +130,6 @@ To uninstall the service, run the following command with administrative privileg
 Contributions are welcome! Feel free to [open an issue] or [submit a pull request].
 
 [open an issue]: https://github.com/unlimitedsola/cf-ddns/issues
-
 [submit a pull request]: https://github.com/unlimitedsola/cf-ddns/pulls
 
 ## License
