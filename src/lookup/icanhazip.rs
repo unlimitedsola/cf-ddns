@@ -5,7 +5,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use reqwest::Client;
 
-use crate::lookup::Lookup;
+use crate::lookup::LookupSpec;
 
 pub struct ICanHazIp {
     client: Client,
@@ -30,7 +30,7 @@ impl ICanHazIp {
     }
 }
 
-impl Lookup for ICanHazIp {
+impl LookupSpec for ICanHazIp {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
         self.lookup("https://ipv4.icanhazip.com").await
     }
@@ -41,7 +41,7 @@ impl Lookup for ICanHazIp {
 
 #[cfg(test)]
 mod tests {
-    use crate::lookup::Lookup;
+    use crate::lookup::LookupSpec;
     use crate::lookup::icanhazip::ICanHazIp;
 
     #[tokio::test]

@@ -2,9 +2,9 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use anyhow::Result;
-use serde::Deserialize;
 
 use crate::config::raw::RawConfig;
+use crate::lookup::{ExecLookup, ICanHazIp, Lookup};
 
 mod raw;
 
@@ -31,11 +31,23 @@ impl Config {
     }
 }
 
-#[derive(Deserialize, Default, Debug, Eq, PartialEq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub enum LookupConfig {
     #[default]
     ICanHazIp,
+    Exec {
+        v4: Option<String>,
+        v6: Option<String>,
+    },
+}
+
+impl LookupConfig {
+    pub fn into_lookup(self) -> Result<Lookup> {
+        match self {
+            LookupConfig::ICanHazIp => Ok(Lookup::ICanHazIp(ICanHazIp::new()?)),
+            LookupConfig::Exec { v4, v6 } => Ok(Lookup::Exec(ExecLookup::new(v4, v6))),
+        }
+    }
 }
 
 #[derive(Debug, Default)]

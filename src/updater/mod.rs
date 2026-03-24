@@ -13,7 +13,7 @@ use crate::AppContext;
 use crate::cloudflare::CloudFlare;
 use crate::cloudflare::record::DnsRecord;
 use crate::config::{Records, RetryConfig, ZoneRecord};
-use crate::lookup::{Lookup, Provider};
+use crate::lookup::{Lookup, LookupSpec};
 use crate::updater::id_cache::IdCache;
 use crate::updater::lookup_cache::{LookupCache, UpdateResult};
 
@@ -21,7 +21,7 @@ mod id_cache;
 mod lookup_cache;
 
 pub struct Updater {
-    lookup: Provider,
+    lookup: Lookup,
     cf: CloudFlare,
     // SAFETY: RefCell is used to allow mutable access to the cache across async calls.
     // We ensure that any borrow of the cache won't be held across an await point,
@@ -38,8 +38,12 @@ pub struct Updater {
 
 impl AppContext {
     pub fn new_updater(&self) -> Result<Updater> {
-        let lookup =
-            Provider::new(&self.config.lookup).context("unable to initialize lookup service")?;
+        let lookup = self
+            .config
+            .lookup
+            .clone()
+            .into_lookup()
+            .context("unable to initialize lookup service")?;
         let cf = CloudFlare::new(&self.config.token)?;
         let id_cache = RefCell::new(IdCache::load().unwrap_or_else(|e| {
             warn!("Failed to load cache: {e}");

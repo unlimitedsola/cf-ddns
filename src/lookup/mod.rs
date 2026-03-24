@@ -2,39 +2,32 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use anyhow::Result;
 
-use crate::config::LookupConfig;
-use crate::lookup::icanhazip::ICanHazIp;
-
+mod exec;
 mod icanhazip;
+pub use exec::ExecLookup;
+pub use icanhazip::ICanHazIp;
 
-pub trait Lookup {
+pub trait LookupSpec {
     async fn lookup_v4(&self) -> Result<Ipv4Addr>;
     async fn lookup_v6(&self) -> Result<Ipv6Addr>;
 }
 
-pub enum Provider {
+pub enum Lookup {
     ICanHazIp(ICanHazIp),
+    Exec(ExecLookup),
 }
 
-impl Provider {
-    pub fn new(cfg: &LookupConfig) -> Result<Self> {
-        match cfg {
-            LookupConfig::ICanHazIp => Ok(Provider::ICanHazIp(ICanHazIp::new()?)),
-        }
-    }
-}
-
-impl Lookup for Provider {
+impl LookupSpec for Lookup {
     async fn lookup_v4(&self) -> Result<Ipv4Addr> {
         match self {
-            Provider::ICanHazIp(i) => i.lookup_v4(),
+            Lookup::ICanHazIp(i) => i.lookup_v4().await,
+            Lookup::Exec(e) => e.lookup_v4().await,
         }
-        .await
     }
     async fn lookup_v6(&self) -> Result<Ipv6Addr> {
         match self {
-            Provider::ICanHazIp(i) => i.lookup_v6(),
+            Lookup::ICanHazIp(i) => i.lookup_v6().await,
+            Lookup::Exec(e) => e.lookup_v6().await,
         }
-        .await
     }
 }
