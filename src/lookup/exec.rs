@@ -14,9 +14,7 @@ impl ExecLookup {
     }
 
     async fn run(&self) -> Result<String> {
-        let output = tokio::process::Command::new(find_shell())
-            .arg("-c")
-            .arg(&self.cmd)
+        let output = shell_command(&self.cmd)
             .output()
             .await
             .with_context(|| format!("failed to execute: {}", self.cmd))?;
@@ -44,8 +42,26 @@ impl LookupSpec for ExecLookup {
     }
 }
 
-/// Resolves the shell to use for executing commands.
+/// Builds a [`tokio::process::Command`] that runs `cmd` through the system shell.
+/// On Windows: `cmd.exe /C <cmd>`.
+/// On Unix: `$SHELL -c <cmd>`, falling back to `bash` then `sh`.
+#[cfg(windows)]
+fn shell_command(cmd: &str) -> tokio::process::Command {
+    let mut c = tokio::process::Command::new("cmd.exe");
+    c.args(["/C", cmd]);
+    c
+}
+
+#[cfg(not(windows))]
+fn shell_command(cmd: &str) -> tokio::process::Command {
+    let mut c = tokio::process::Command::new(find_shell());
+    c.args(["-c", cmd]);
+    c
+}
+
+/// Resolves the shell to use on Unix-like systems.
 /// Prefers `$SHELL`, falls back to `bash` if found in `$PATH`, then `sh`.
+#[cfg(not(windows))]
 fn find_shell() -> String {
     if let Ok(shell) = std::env::var("SHELL")
         && !shell.is_empty()
@@ -58,6 +74,7 @@ fn find_shell() -> String {
     "sh".to_owned()
 }
 
+#[cfg(not(windows))]
 fn find_in_path(name: &str) -> bool {
     std::env::var_os("PATH")
         .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(name).is_file()))
