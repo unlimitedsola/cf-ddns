@@ -1,5 +1,5 @@
 use std::ffi::c_void;
-use std::mem::size_of;
+use std::mem::{align_of, size_of};
 use std::ptr::null_mut;
 
 use anyhow::{Result, bail};
@@ -66,9 +66,9 @@ struct SystemProcessInfo {
 
 fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
     // Generally, you need at least 512 KiB to fit all process info.
-    let mut buf_size = 512 * 1024;
+    let mut buf_size: usize = 512 * 1024;
     loop {
-        let mut buf = vec![0_u8; buf_size];
+        let mut buf = AlignedBuf::new::<SYSTEM_PROCESS_INFORMATION>(buf_size)?;
 
         // If query failed with insufficient buffer size, the expected size
         // will be written into `needed`.
@@ -102,10 +102,14 @@ fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
     }
 }
 
-unsafe fn parse_and_find_system_process(pid: usize, buf: *mut u8) -> Result<SystemProcessInfo> {
-    let mut offset = 0;
+unsafe fn parse_and_find_system_process(pid: usize, buf: *const u8) -> Result<SystemProcessInfo> {
+    let mut offset = 0usize;
     loop {
-        let info = unsafe { &*(buf.offset(offset) as *const SYSTEM_PROCESS_INFORMATION) };
+        // SAFETY: `buf + offset` points within the buffer written by NtQuerySystemInformation.
+        // We use read_unaligned because MSDN does not document that NextEntryOffset is guaranteed
+        // to produce a pointer aligned for SYSTEM_PROCESS_INFORMATION.
+        let info =
+            unsafe { (buf.add(offset) as *const SYSTEM_PROCESS_INFORMATION).read_unaligned() };
         if info.UniqueProcessId.0 as usize == pid {
             return Ok(SystemProcessInfo {
                 session_id: info.SessionId,
@@ -116,7 +120,38 @@ unsafe fn parse_and_find_system_process(pid: usize, buf: *mut u8) -> Result<Syst
             // Reached the end of the list
             bail!("Could not find process with pid {}", pid);
         }
-        offset += info.NextEntryOffset as isize;
+        offset += info.NextEntryOffset as usize;
+    }
+}
+
+/// A raw byte buffer with an explicit alignment, used as an FFI output buffer.
+///
+/// The buffer is intentionally untyped: `NtQuerySystemInformation` writes a mix of
+/// `SYSTEM_PROCESS_INFORMATION` and `SYSTEM_THREAD_INFORMATION` records into it. A typed
+/// `Vec<SYSTEM_PROCESS_INFORMATION>` would misrepresent the contents.
+struct AlignedBuf {
+    ptr: *mut u8,
+    layout: std::alloc::Layout,
+}
+
+impl AlignedBuf {
+    fn new<T>(bytes: usize) -> Result<Self> {
+        let layout = std::alloc::Layout::from_size_align(bytes, align_of::<T>())?;
+        let ptr = unsafe { std::alloc::alloc_zeroed(layout) };
+        if ptr.is_null() {
+            bail!("Failed to allocate {} bytes for process info buffer", bytes);
+        }
+        Ok(Self { ptr, layout })
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.ptr
+    }
+}
+
+impl Drop for AlignedBuf {
+    fn drop(&mut self) {
+        unsafe { std::alloc::dealloc(self.ptr, self.layout) };
     }
 }
 
