@@ -28,6 +28,14 @@ tracing = "0.1.44"
 tracing-appender = "0.2.4"
 tracing-subscriber = "0.3.23"
 
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.100"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+netlink-packet-core = "0.8"
+netlink-packet-route = "0.28"
+netlink-sys = "0.8"
+
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.62.2"
 optional = true
@@ -39,6 +47,15 @@ features = [
     "Win32_System_Services",
     "Wdk_System_Threading",
     "Wdk_System_SystemInformation",
+]
+
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.59.0"
+features = [
+    "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
 ]
 
 [profile.release]

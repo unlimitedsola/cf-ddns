@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   backoff_multiplier = 2.0  # exponential growth factor (default: 2.0)
   max_attempts = 5      # total attempt budget per interval (default: 5)
   ```
+- `interface` lookup provider: read the public IP address from a named network interface.
+  This is especially useful for IPv6 deployments where the desired address is already
+  assigned locally.
+  ```toml
+  [lookup]
+  v6 = { provider = "interface", interface = "eth0" }
+  ```
 
 ### Fixed
 

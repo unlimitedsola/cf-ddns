@@ -8,6 +8,7 @@ token = "<your-cloudflare-token>"
 [lookup]
 # v4 = "icanhazip"
 # v6 = { provider = "exec", cmd = "curl -s ipv6.icanhazip.com" }
+# v6 = { provider = "interface", interface = "eth0" }
 
 # Retry configuration for failed updates.
 [retry]

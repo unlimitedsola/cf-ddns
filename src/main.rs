@@ -10,6 +10,8 @@ use crate::config::Config;
 mod cli;
 mod cloudflare;
 mod config;
+mod debug;
+mod getifaddrs;
 mod lookup;
 mod service;
 mod updater;
@@ -33,9 +35,16 @@ async fn main() -> Result<()> {
         return service::run_as_service();
     }
 
+    let cli: Cli = Cli::parse();
+
+    // Debug commands don't require config or tracing setup; handle them first for clean output.
+    if let Some(cli::Command::Debug(ref debug_cmd)) = cli.command {
+        debug_cmd.run()?;
+        return Ok(());
+    }
+
     tracing_subscriber::fmt().init();
 
-    let cli: Cli = Cli::parse();
     let app = AppContext::new(cli)?;
     app.run().await?;
     Ok(())

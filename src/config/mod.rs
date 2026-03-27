@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 
 use crate::current_exe;
-use crate::lookup::{ExecLookup, ICanHazIp, Lookup, Provider};
+use crate::lookup::{ExecLookup, ICanHazIp, InterfaceLookup, Lookup, Provider};
 
 mod de;
 
@@ -101,6 +101,8 @@ pub enum ProviderConfig {
     ICanHazIp,
     /// Run a shell command and parse its stdout as an IP address.
     Exec { cmd: String },
+    /// Read the address assigned to a specific network interface.
+    Interface { interface: String },
 }
 
 impl FromStr for ProviderConfig {
@@ -113,8 +115,12 @@ impl FromStr for ProviderConfig {
                 r#"provider "exec" requires `cmd`: use `{ provider = "exec", cmd = "..." }`"#
                     .to_owned(),
             ),
+            "interface" => Err(
+                r#"provider "interface" requires `interface`: use `{ provider = "interface", interface = "eth0" }`"#
+                    .to_owned(),
+            ),
             _ => Err(format!(
-                "unknown provider `{s}`, expected one of: icanhazip, exec"
+                "unknown provider `{s}`, expected one of: icanhazip, exec, interface"
             )),
         }
     }
@@ -125,6 +131,9 @@ impl ProviderConfig {
         match self {
             ProviderConfig::ICanHazIp => Ok(Provider::ICanHazIp(ICanHazIp::new()?)),
             ProviderConfig::Exec { cmd } => Ok(Provider::Exec(ExecLookup::new(cmd))),
+            ProviderConfig::Interface { interface } => {
+                Ok(Provider::Interface(InterfaceLookup::new(interface)?))
+            }
         }
     }
 }
@@ -292,6 +301,27 @@ mod tests {
     }
 
     #[test]
+    fn lookup_split_interface_detailed() {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [lookup]
+                v6 = { provider = "interface", interface = "eth0" }
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            cfg.lookup,
+            LookupConfig {
+                v4: ProviderConfig::ICanHazIp,
+                v6: ProviderConfig::Interface {
+                    interface: "eth0".to_owned(),
+                },
+            }
+        );
+    }
+
+    #[test]
     fn lookup_split_mixed() {
         let cfg = Config::from_toml(
             r#"
@@ -350,6 +380,18 @@ mod tests {
                 token = "test"
                 [lookup]
                 v4 = "exec"
+            "#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn lookup_split_interface_bare_string_errors() {
+        let result = Config::from_toml(
+            r#"
+                token = "test"
+                [lookup]
+                v6 = "interface"
             "#,
         );
         assert!(result.is_err());

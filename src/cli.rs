@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::AppContext;
+use crate::debug::DebugCommand;
 #[cfg(feature = "service")]
 use crate::service::ServiceCommand;
 
@@ -21,6 +22,9 @@ pub enum Command {
     #[cfg(feature = "service")]
     #[command(subcommand)]
     Service(ServiceCommand),
+    /// Diagnostic commands for inspecting runtime state.
+    #[command(subcommand)]
+    Debug(DebugCommand),
 }
 
 impl AppContext {
@@ -31,6 +35,7 @@ impl AppContext {
                 Command::Update { name } => self.update(name.as_deref()).await?,
                 #[cfg(feature = "service")]
                 Command::Service(command) => self.run_service_command(&command).await?,
+                Command::Debug(_) => unreachable!("debug commands are handled before config is loaded"),
             },
         }
         Ok(())

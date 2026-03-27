@@ -4,8 +4,10 @@ use anyhow::Result;
 
 mod exec;
 mod icanhazip;
+pub(crate) mod interface;
 pub use exec::ExecLookup;
 pub use icanhazip::ICanHazIp;
+pub use interface::InterfaceLookup;
 
 pub trait LookupSpec {
     async fn lookup_v4(&self) -> Result<Ipv4Addr>;
@@ -22,6 +24,7 @@ pub struct Lookup {
 pub enum Provider {
     ICanHazIp(ICanHazIp),
     Exec(ExecLookup),
+    Interface(InterfaceLookup),
 }
 
 impl LookupSpec for Lookup {
@@ -29,12 +32,14 @@ impl LookupSpec for Lookup {
         match &self.v4 {
             Provider::ICanHazIp(i) => i.lookup_v4().await,
             Provider::Exec(e) => e.lookup_v4().await,
+            Provider::Interface(i) => i.lookup_v4().await,
         }
     }
     async fn lookup_v6(&self) -> Result<Ipv6Addr> {
         match &self.v6 {
             Provider::ICanHazIp(i) => i.lookup_v6().await,
             Provider::Exec(e) => e.lookup_v6().await,
+            Provider::Interface(i) => i.lookup_v6().await,
         }
     }
 }

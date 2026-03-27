@@ -90,6 +90,18 @@ v4 = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" }
 v6 = { provider = "exec", cmd = "curl -s ipv6.icanhazip.com" }
 ```
 
+Or read the address assigned to a specific network interface:
+
+```toml
+[lookup]
+v6 = { provider = "interface", interface = "eth0" }
+```
+
+This is especially useful for IPv6 when the public address is already bound to
+an interface locally. The provider uses the first public address reported by the
+OS for that interface and protocol, and returns an error if only local or
+non-routable addresses are present.
+
 Each protocol can use a different provider.
 Omitting a protocol from `[lookup]` leaves it at the default (`icanhazip`).
 
