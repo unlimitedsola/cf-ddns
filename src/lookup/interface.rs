@@ -82,7 +82,11 @@ impl InterfaceLookup {
         }
 
         if candidates.is_empty() {
-            bail!("interface `{}` has no active {} address", self.interface, family);
+            bail!(
+                "interface `{}` has no active {} address",
+                self.interface,
+                family
+            );
         }
 
         let found = candidates
@@ -173,21 +177,21 @@ mod tests {
 
     #[test]
     fn private_ipv4_rejected() {
-        assert!(!is_public_ipv4(Ipv4Addr::new(0, 0, 0, 1)));      // 0.0.0.0/8
-        assert!(!is_public_ipv4(Ipv4Addr::new(10, 0, 0, 1)));     // 10/8
-        assert!(!is_public_ipv4(Ipv4Addr::new(100, 64, 0, 1)));   // CGNAT 100.64/10
+        assert!(!is_public_ipv4(Ipv4Addr::new(0, 0, 0, 1))); // 0.0.0.0/8
+        assert!(!is_public_ipv4(Ipv4Addr::new(10, 0, 0, 1))); // 10/8
+        assert!(!is_public_ipv4(Ipv4Addr::new(100, 64, 0, 1))); // CGNAT 100.64/10
         assert!(!is_public_ipv4(Ipv4Addr::new(100, 127, 255, 1))); // CGNAT upper bound
-        assert!(!is_public_ipv4(Ipv4Addr::new(127, 0, 0, 1)));    // loopback
-        assert!(!is_public_ipv4(Ipv4Addr::new(169, 254, 1, 1)));  // link-local
-        assert!(!is_public_ipv4(Ipv4Addr::new(172, 16, 0, 1)));   // 172.16/12 lower
-        assert!(!is_public_ipv4(Ipv4Addr::new(172, 31, 0, 1)));   // 172.16/12 upper
-        assert!(!is_public_ipv4(Ipv4Addr::new(192, 0, 0, 1)));    // IETF protocol
-        assert!(!is_public_ipv4(Ipv4Addr::new(192, 0, 2, 1)));    // TEST-NET-1
-        assert!(!is_public_ipv4(Ipv4Addr::new(192, 168, 1, 1)));  // 192.168/16
-        assert!(!is_public_ipv4(Ipv4Addr::new(198, 18, 0, 1)));   // benchmarking
+        assert!(!is_public_ipv4(Ipv4Addr::new(127, 0, 0, 1))); // loopback
+        assert!(!is_public_ipv4(Ipv4Addr::new(169, 254, 1, 1))); // link-local
+        assert!(!is_public_ipv4(Ipv4Addr::new(172, 16, 0, 1))); // 172.16/12 lower
+        assert!(!is_public_ipv4(Ipv4Addr::new(172, 31, 0, 1))); // 172.16/12 upper
+        assert!(!is_public_ipv4(Ipv4Addr::new(192, 0, 0, 1))); // IETF protocol
+        assert!(!is_public_ipv4(Ipv4Addr::new(192, 0, 2, 1))); // TEST-NET-1
+        assert!(!is_public_ipv4(Ipv4Addr::new(192, 168, 1, 1))); // 192.168/16
+        assert!(!is_public_ipv4(Ipv4Addr::new(198, 18, 0, 1))); // benchmarking
         assert!(!is_public_ipv4(Ipv4Addr::new(198, 51, 100, 1))); // TEST-NET-2
-        assert!(!is_public_ipv4(Ipv4Addr::new(203, 0, 113, 1)));  // TEST-NET-3
-        assert!(!is_public_ipv4(Ipv4Addr::new(224, 0, 0, 1)));    // multicast
+        assert!(!is_public_ipv4(Ipv4Addr::new(203, 0, 113, 1))); // TEST-NET-3
+        assert!(!is_public_ipv4(Ipv4Addr::new(224, 0, 0, 1))); // multicast
         assert!(!is_public_ipv4(Ipv4Addr::new(255, 255, 255, 255))); // broadcast
     }
 
@@ -202,13 +206,13 @@ mod tests {
 
     #[test]
     fn private_ipv6_rejected() {
-        assert!(!is_public_ipv6(Ipv6Addr::UNSPECIFIED));              // ::
-        assert!(!is_public_ipv6(Ipv6Addr::LOCALHOST));                // ::1
-        assert!(!is_public_ipv6("ff02::1".parse().unwrap()));         // multicast
-        assert!(!is_public_ipv6("fe80::1".parse().unwrap()));         // link-local
-        assert!(!is_public_ipv6("fec0::1".parse().unwrap()));         // site-local
-        assert!(!is_public_ipv6("fc00::1".parse().unwrap()));         // ULA fc::/7 lower
-        assert!(!is_public_ipv6("fd00::1".parse().unwrap()));         // ULA fd::/7 upper
-        assert!(!is_public_ipv6("2001:db8::1".parse().unwrap()));     // documentation
+        assert!(!is_public_ipv6(Ipv6Addr::UNSPECIFIED)); // ::
+        assert!(!is_public_ipv6(Ipv6Addr::LOCALHOST)); // ::1
+        assert!(!is_public_ipv6("ff02::1".parse().unwrap())); // multicast
+        assert!(!is_public_ipv6("fe80::1".parse().unwrap())); // link-local
+        assert!(!is_public_ipv6("fec0::1".parse().unwrap())); // site-local
+        assert!(!is_public_ipv6("fc00::1".parse().unwrap())); // ULA fc::/7 lower
+        assert!(!is_public_ipv6("fd00::1".parse().unwrap())); // ULA fd::/7 upper
+        assert!(!is_public_ipv6("2001:db8::1".parse().unwrap())); // documentation
     }
 }

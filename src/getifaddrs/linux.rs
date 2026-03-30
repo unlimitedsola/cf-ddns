@@ -1,11 +1,13 @@
 use super::{AddressFlags, Interface, InterfaceAddress, InterfaceFlags};
-use netlink_packet_core::{NetlinkHeader, NetlinkMessage, NetlinkPayload, NLM_F_DUMP, NLM_F_REQUEST};
+use netlink_packet_core::{
+    NLM_F_DUMP, NLM_F_REQUEST, NetlinkHeader, NetlinkMessage, NetlinkPayload,
+};
 use netlink_packet_route::{
+    RouteNetlinkMessage,
     address::{AddressAttribute, AddressFlags as NetlinkAddressFlags, AddressMessage},
     link::{LinkAttribute, LinkFlags, LinkMessage},
-    RouteNetlinkMessage,
 };
-use netlink_sys::{protocols::NETLINK_ROUTE, Socket, SocketAddr};
+use netlink_sys::{Socket, SocketAddr, protocols::NETLINK_ROUTE};
 use std::collections::HashMap;
 use std::io;
 use std::net::IpAddr;
@@ -61,12 +63,17 @@ fn dump_links(socket: &Socket) -> io::Result<HashMap<u32, (String, InterfaceFlag
     for msg in recv_dump(socket)? {
         if let RouteNetlinkMessage::NewLink(m) = msg {
             let Some(name) = m.attributes.into_iter().find_map(|a| {
-                if let LinkAttribute::IfName(n) = a { Some(n) } else { None }
+                if let LinkAttribute::IfName(n) = a {
+                    Some(n)
+                } else {
+                    None
+                }
             }) else {
                 continue;
             };
             let mut flags = InterfaceFlags::empty();
-            if m.header.flags.contains(LinkFlags::Up) && m.header.flags.contains(LinkFlags::LowerUp) {
+            if m.header.flags.contains(LinkFlags::Up) && m.header.flags.contains(LinkFlags::LowerUp)
+            {
                 flags = flags.with(InterfaceFlags::UP);
             }
             if m.header.flags.contains(LinkFlags::Loopback) {
@@ -92,12 +99,19 @@ fn dump_addresses(
             .enumerate()
             .map(|(pos, (&idx, (name, flags)))| {
                 by_index.insert(idx, pos);
-                Interface { name: name.clone(), flags: *flags, addresses: Vec::new() }
+                Interface {
+                    name: name.clone(),
+                    flags: *flags,
+                    addresses: Vec::new(),
+                }
             })
             .collect()
     };
 
-    send_dump(socket, RouteNetlinkMessage::GetAddress(AddressMessage::default()))?;
+    send_dump(
+        socket,
+        RouteNetlinkMessage::GetAddress(AddressMessage::default()),
+    )?;
     for msg in recv_dump(socket)? {
         if let RouteNetlinkMessage::NewAddress(m) = msg {
             let Some(&pos) = by_index.get(&m.header.index) else {
@@ -128,11 +142,13 @@ fn dump_addresses(
                 addr_flags = addr_flags.with(AddressFlags::DEPRECATED);
             }
             if let Some(addr) = address {
-                interfaces[pos].addresses.push(InterfaceAddress { address: addr, flags: addr_flags });
+                interfaces[pos].addresses.push(InterfaceAddress {
+                    address: addr,
+                    flags: addr_flags,
+                });
             }
         }
     }
     interfaces.retain(|i| !i.addresses.is_empty());
     Ok(interfaces)
 }
-
