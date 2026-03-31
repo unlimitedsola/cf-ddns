@@ -1,18 +1,18 @@
 use super::{AddressFlags, Interface, InterfaceAddress, InterfaceFlags};
 use std::{io, net::IpAddr};
-use windows_sys::Win32::Foundation::{
-    ERROR_BUFFER_OVERFLOW, ERROR_NO_DATA, ERROR_NOT_ENOUGH_MEMORY, NO_ERROR,
+use windows::Win32::Foundation::{
+    ERROR_BUFFER_OVERFLOW, ERROR_NO_DATA, ERROR_NOT_ENOUGH_MEMORY, NO_ERROR, WIN32_ERROR,
 };
-use windows_sys::Win32::NetworkManagement::IpHelper::{
-    ConvertInterfaceLuidToIndex, GetAdaptersAddresses, GetNumberOfInterfaces,
-    IP_ADAPTER_ADDRESSES_LH, MIB_IF_TYPE_LOOPBACK, if_indextoname,
+use windows::Win32::NetworkManagement::IpHelper::{
+    ConvertInterfaceLuidToIndex, GET_ADAPTERS_ADDRESSES_FLAGS, GetAdaptersAddresses,
+    GetNumberOfInterfaces, IP_ADAPTER_ADDRESSES_LH, MIB_IF_TYPE_LOOPBACK, if_indextoname,
 };
-use windows_sys::Win32::NetworkManagement::Ndis::{IfOperStatusUp, NET_LUID_LH};
-use windows_sys::Win32::Networking::WinSock::{
+use windows::Win32::NetworkManagement::Ndis::{IfOperStatusUp, NET_LUID_LH};
+use windows::Win32::Networking::WinSock::{
     AF_INET, AF_INET6, IpSuffixOriginRandom, SOCKADDR, SOCKADDR_IN, SOCKADDR_IN6,
 };
 
-const IF_NAMESIZE: usize = 1024;
+const IF_NAMESIZE: usize = 256;
 
 pub fn get_interfaces() -> io::Result<Vec<Interface>> {
     let adapters = AdaptersAddresses::try_new()?;
@@ -107,7 +107,7 @@ impl AdaptersAddresses {
     fn try_new() -> io::Result<Self> {
         let mut num_interfaces = 0u32;
         unsafe {
-            if GetNumberOfInterfaces(&mut num_interfaces) != NO_ERROR {
+            if WIN32_ERROR(GetNumberOfInterfaces(&mut num_interfaces)) != NO_ERROR {
                 num_interfaces = 16;
             } else {
                 num_interfaces = num_interfaces.max(8);
@@ -126,15 +126,15 @@ impl AdaptersAddresses {
                     "exceeded maximum memory size",
                 ));
             }
-            match unsafe {
+            match WIN32_ERROR(unsafe {
                 GetAdaptersAddresses(
                     0, // AF_UNSPEC
-                    0, // no special flags
-                    std::ptr::null_mut(),
-                    adapters.buf.ptr,
+                    GET_ADAPTERS_ADDRESSES_FLAGS(0),
+                    None,
+                    Some(adapters.buf.ptr),
                     &mut out_buf_len,
                 )
-            } {
+            }) {
                 NO_ERROR => return Ok(adapters),
                 ERROR_BUFFER_OVERFLOW | ERROR_NOT_ENOUGH_MEMORY => {
                     if out_buf_len == MAX_MEMORY_SIZE {
@@ -149,7 +149,8 @@ impl AdaptersAddresses {
                 ERROR_NO_DATA => return Err(io::Error::new(io::ErrorKind::NotFound, "No data")),
                 other => {
                     return Err(io::Error::other(format!(
-                        "GetAdaptersAddresses failed: {other:x}"
+                        "GetAdaptersAddresses failed: {:x}",
+                        other.0
                     )));
                 }
             }
@@ -161,11 +162,11 @@ fn luid_to_name(luid: NET_LUID_LH) -> String {
     let mut if_index: u32 = 0;
     if unsafe { ConvertInterfaceLuidToIndex(&luid, &mut if_index) } == NO_ERROR {
         let mut buffer = [0u8; IF_NAMESIZE];
-        let ptr = unsafe { if_indextoname(if_index, buffer.as_mut_ptr()) };
+        let ptr = unsafe { if_indextoname(if_index, &mut buffer) };
         if !ptr.is_null() {
-            return unsafe { std::ffi::CStr::from_ptr(ptr as *const i8) }
-                .to_string_lossy()
-                .into_owned();
+            if let Ok(name) = unsafe { ptr.to_string() } {
+                return name;
+            }
         }
     }
     format!("if{:#x}", unsafe { luid.Value })

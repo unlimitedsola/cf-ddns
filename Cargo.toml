@@ -11,7 +11,7 @@ readme = "README.md"
 
 [features]
 default = ["service"]
-service = ["dep:windows", "tokio/signal"]
+service = ["tokio/signal"]
 
 [dependencies]
 anyhow = "1.0.102"
@@ -38,24 +38,17 @@ netlink-sys = "0.8"
 
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.62.2"
-optional = true
 features = [
     "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
     "Win32_System_Kernel",
     "Win32_System_Threading",
     "Win32_System_WindowsProgramming",
     "Win32_System_Services",
     "Wdk_System_Threading",
     "Wdk_System_SystemInformation",
-]
-
-[target.'cfg(windows)'.dependencies.windows-sys]
-version = "0.61.2"
-features = [
-    "Win32_Foundation",
-    "Win32_NetworkManagement_IpHelper",
-    "Win32_NetworkManagement_Ndis",
-    "Win32_Networking_WinSock",
 ]
 
 [profile.release]
