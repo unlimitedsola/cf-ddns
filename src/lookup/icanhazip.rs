@@ -41,10 +41,8 @@ impl LookupSpec for ICanHazIp {
 
 #[cfg(test)]
 #[expect(
-    clippy::unwrap_used,
     clippy::print_stdout,
-    clippy::semicolon_if_nothing_returned,
-    reason = "unwrap, print_stdout, and semicolon allowed in tests"
+    reason = "print_stdout allowed in tests"
 )]
 mod tests {
     use crate::lookup::LookupSpec;
@@ -52,15 +50,17 @@ mod tests {
 
     #[tokio::test]
     #[ignore = "requires public network"]
-    async fn v4_test() {
-        let r = ICanHazIp::new().unwrap().lookup_v4().await.unwrap();
-        println!("{r:?}")
+    async fn v4_test() -> anyhow::Result<()> {
+        let r = ICanHazIp::new()?.lookup_v4().await?;
+        println!("{r:?}");
+        Ok(())
     }
 
     #[tokio::test]
     #[ignore = "requires public network"]
-    async fn v6_test() {
-        let r = ICanHazIp::new().unwrap().lookup_v6().await.unwrap();
-        println!("{r:?}")
+    async fn v6_test() -> anyhow::Result<()> {
+        let r = ICanHazIp::new()?.lookup_v6().await?;
+        println!("{r:?}");
+        Ok(())
     }
 }

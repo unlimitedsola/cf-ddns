@@ -2,6 +2,7 @@ use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use crate::getifaddrs::{AddressFlags, InterfaceFlags, getifaddrs};
+use crate::util::ip_ext::{is_global_ipv4, is_global_ipv6};
 use anyhow::{Context, Result, bail, ensure};
 
 use crate::lookup::LookupSpec;
@@ -126,43 +127,15 @@ impl LookupSpec for InterfaceLookup {
     }
 }
 
-#[expect(
-    clippy::unnested_or_patterns,
-    reason = "flat patterns are clearer to read"
-)]
-pub(crate) const fn is_public_ipv4(addr: Ipv4Addr) -> bool {
-    !matches!(
-        addr.octets(),
-        [0, _, _, _]
-            | [10, _, _, _]
-            | [100, 64..=127, _, _]
-            | [127, _, _, _]
-            | [169, 254, _, _]
-            | [172, 16..=31, _, _]
-            | [192, 0, 0, _]
-            | [192, 0, 2, _]
-            | [192, 168, _, _]
-            | [198, 18..=19, _, _]
-            | [198, 51, 100, _]
-            | [203, 0, 113, _]
-            | [224..=255, _, _, _]
-    )
+pub(crate) fn is_public_ipv4(addr: Ipv4Addr) -> bool {
+    is_global_ipv4(addr) && !addr.is_multicast() && addr.octets()[0..3] != [192, 88, 99]
 }
 
 pub(crate) const fn is_public_ipv6(addr: Ipv6Addr) -> bool {
-    let [first, second, ..] = addr.segments();
-
-    !addr.is_unspecified()
-        && !addr.is_loopback()
-        && !addr.is_multicast()
-        && (first & 0xfe00) != 0xfc00
-        && (first & 0xffc0) != 0xfe80
-        && (first & 0xffc0) != 0xfec0
-        && !(first == 0x2001 && second == 0x0db8)
+    is_global_ipv6(&addr) && !addr.is_multicast() && (addr.segments()[0] & 0xffc0) != 0xfec0
 }
 
 #[cfg(test)]
-#[expect(clippy::unwrap_used, reason = "unwrap is expected in tests")]
 mod tests {
     use super::*;
 
@@ -196,6 +169,7 @@ mod tests {
         assert!(!is_public_ipv4(Ipv4Addr::new(198, 18, 0, 1))); // benchmarking
         assert!(!is_public_ipv4(Ipv4Addr::new(198, 51, 100, 1))); // TEST-NET-2
         assert!(!is_public_ipv4(Ipv4Addr::new(203, 0, 113, 1))); // TEST-NET-3
+        assert!(!is_public_ipv4(Ipv4Addr::new(192, 88, 99, 1))); // 6to4 Relay Anycast
         assert!(!is_public_ipv4(Ipv4Addr::new(224, 0, 0, 1))); // multicast
         assert!(!is_public_ipv4(Ipv4Addr::BROADCAST)); // broadcast
     }
@@ -203,21 +177,30 @@ mod tests {
     // --- is_public_ipv6 ---
 
     #[test]
-    fn public_ipv6_accepted() {
-        assert!(is_public_ipv6("2606:4700:4700::1111".parse().unwrap()));
-        assert!(is_public_ipv6("2001:4860:4860::8888".parse().unwrap()));
-        assert!(is_public_ipv6("2a00:1450:4001::1".parse().unwrap()));
+    fn public_ipv6_accepted() -> anyhow::Result<()> {
+        assert!(is_public_ipv6("2606:4700:4700::1111".parse()?));
+        assert!(is_public_ipv6("2001:4860:4860::8888".parse()?));
+        assert!(is_public_ipv6("2a00:1450:4001::1".parse()?));
+        Ok(())
     }
 
     #[test]
-    fn private_ipv6_rejected() {
+    fn private_ipv6_rejected() -> anyhow::Result<()> {
         assert!(!is_public_ipv6(Ipv6Addr::UNSPECIFIED)); // ::
         assert!(!is_public_ipv6(Ipv6Addr::LOCALHOST)); // ::1
-        assert!(!is_public_ipv6("ff02::1".parse().unwrap())); // multicast
-        assert!(!is_public_ipv6("fe80::1".parse().unwrap())); // link-local
-        assert!(!is_public_ipv6("fec0::1".parse().unwrap())); // site-local
-        assert!(!is_public_ipv6("fc00::1".parse().unwrap())); // ULA fc::/7 lower
-        assert!(!is_public_ipv6("fd00::1".parse().unwrap())); // ULA fd::/7 upper
-        assert!(!is_public_ipv6("2001:db8::1".parse().unwrap())); // documentation
+        assert!(!is_public_ipv6("ff02::1".parse()?)); // multicast
+        assert!(!is_public_ipv6("fe80::1".parse()?)); // link-local
+        assert!(!is_public_ipv6("fec0::1".parse()?)); // site-local
+        assert!(!is_public_ipv6("fc00::1".parse()?)); // ULA fc::/7 lower
+        assert!(!is_public_ipv6("fd00::1".parse()?)); // ULA fd::/7 upper
+        assert!(!is_public_ipv6("2001:db8::1".parse()?)); // documentation
+        assert!(!is_public_ipv6("::ffff:192.168.1.1".parse()?)); // IPv4-mapped
+        assert!(!is_public_ipv6("64:ff9b:1::1".parse()?)); // IPv4/IPv6 translation
+        assert!(!is_public_ipv6("100::1".parse()?)); // Discard-only
+        assert!(!is_public_ipv6("2001::1".parse()?)); // Teredo / IETF protocol
+        assert!(!is_public_ipv6("2002::1".parse()?)); // 6to4 transition
+        assert!(!is_public_ipv6("3fff::1".parse()?)); // Documentation (RFC 9637)
+        assert!(!is_public_ipv6("5f00::1".parse()?)); // Segment Routing SRv6
+        Ok(())
     }
 }

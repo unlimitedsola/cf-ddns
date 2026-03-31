@@ -5,12 +5,10 @@ use std::time::Duration;
 
 use serde::{Deserialize, Deserializer, de};
 
-use super::{Records, ZoneRecord};
-
+use super::{ProviderConfig, Records, ZoneRecord};
 pub(super) const fn default_interval() -> Duration {
     Duration::from_mins(5)
 }
-
 pub(super) fn duration_from_secs<'de, D: Deserializer<'de>>(d: D) -> Result<Duration, D::Error> {
     Ok(Duration::from_secs(u64::deserialize(d)?))
 }
@@ -51,28 +49,93 @@ where
 }
 
 pub(super) fn deserialize_records<'de, D: Deserializer<'de>>(d: D) -> Result<Records, D::Error> {
+    #[derive(Debug, Clone, Eq, PartialEq, Default)]
+    enum RecordLookup {
+        #[default]
+        Disabled,
+        Global,
+        Custom(ProviderConfig),
+    }
+
+    fn bool_or_protocol<'de, D: Deserializer<'de>>(d: D) -> Result<RecordLookup, D::Error> {
+        struct BoolOrProtocol;
+
+        impl<'de> de::Visitor<'de> for BoolOrProtocol {
+            type Value = RecordLookup;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("bool or record lookup config table")
+            }
+
+            fn visit_bool<E: de::Error>(self, v: bool) -> Result<Self::Value, E> {
+                Ok(if v {
+                    RecordLookup::Global
+                } else {
+                    RecordLookup::Disabled
+                })
+            }
+
+            fn visit_map<M: de::MapAccess<'de>>(self, map: M) -> Result<Self::Value, M::Error> {
+                #[derive(Deserialize)]
+                struct RecordProtocolConfig {
+                    #[serde(deserialize_with = "string_or_struct")]
+                    lookup: ProviderConfig,
+                }
+                let config =
+                    RecordProtocolConfig::deserialize(de::value::MapAccessDeserializer::new(map))?;
+                Ok(RecordLookup::Custom(config.lookup))
+            }
+        }
+
+        d.deserialize_any(BoolOrProtocol)
+    }
+
     #[derive(Deserialize)]
     struct RecordEntry {
         name: String,
         zone: String,
-        #[serde(default)]
-        v4: bool,
-        #[serde(default)]
-        v6: bool,
+        #[serde(default, deserialize_with = "bool_or_protocol")]
+        v4: RecordLookup,
+        #[serde(default, deserialize_with = "bool_or_protocol")]
+        v6: RecordLookup,
     }
 
     let entries = Vec::<RecordEntry>::deserialize(d)?;
     let mut records = Records::default();
     for rec in entries {
-        let zone_record = ZoneRecord {
-            zone: rec.zone,
-            name: rec.name,
-        };
-        if rec.v4 {
-            records.v4.push(zone_record.clone());
+        match rec.v4 {
+            RecordLookup::Global => {
+                records.v4.push(ZoneRecord {
+                    zone: rec.zone.clone(),
+                    name: rec.name.clone(),
+                    lookup: None,
+                });
+            }
+            RecordLookup::Custom(cfg) => {
+                records.v4.push(ZoneRecord {
+                    zone: rec.zone.clone(),
+                    name: rec.name.clone(),
+                    lookup: Some(cfg),
+                });
+            }
+            RecordLookup::Disabled => {}
         }
-        if rec.v6 {
-            records.v6.push(zone_record);
+        match rec.v6 {
+            RecordLookup::Global => {
+                records.v6.push(ZoneRecord {
+                    zone: rec.zone.clone(),
+                    name: rec.name.clone(),
+                    lookup: None,
+                });
+            }
+            RecordLookup::Custom(cfg) => {
+                records.v6.push(ZoneRecord {
+                    zone: rec.zone.clone(),
+                    name: rec.name.clone(),
+                    lookup: Some(cfg),
+                });
+            }
+            RecordLookup::Disabled => {}
         }
     }
     Ok(records)

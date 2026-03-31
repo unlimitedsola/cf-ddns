@@ -25,6 +25,10 @@ impl ScHandle {
 
 impl Drop for ScHandle {
     fn drop(&mut self) {
-        unsafe { Services::CloseServiceHandle(self.0).ok().unwrap() };
+        unsafe {
+            Services::CloseServiceHandle(self.0)
+                .ok()
+                .expect("failed to close service handle")
+        };
     }
 }

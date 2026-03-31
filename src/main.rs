@@ -15,6 +15,7 @@ mod getifaddrs;
 mod lookup;
 mod service;
 mod updater;
+mod util;
 
 struct AppContext {
     cli: Cli,

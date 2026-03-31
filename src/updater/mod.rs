@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::rc::Rc;
 use std::time::Duration;
@@ -12,8 +13,8 @@ use tracing::{error, info, warn};
 use crate::AppContext;
 use crate::cloudflare::CloudFlare;
 use crate::cloudflare::record::DnsRecord;
-use crate::config::{Records, RetryConfig, ZoneRecord};
-use crate::lookup::{Lookup, LookupSpec};
+use crate::config::{LookupConfig, ProviderConfig, Records, RetryConfig, ZoneRecord};
+use crate::lookup::{LookupSpec, Provider};
 use crate::updater::id_cache::IdCache;
 use crate::updater::lookup_cache::{LookupCache, UpdateResult};
 
@@ -21,7 +22,10 @@ mod id_cache;
 mod lookup_cache;
 
 pub struct Updater {
-    lookup: Lookup,
+    lookup_config: LookupConfig,
+    /// All lookup providers keyed by their config — global (v4/v6 defaults) and
+    /// per-record overrides live in the same map so both code paths are identical.
+    providers: HashMap<ProviderConfig, Provider>,
     cf: CloudFlare,
     // SAFETY: RefCell is used to allow mutable access to the cache across async calls.
     // We ensure that any borrow of the cache won't be held across an await point,
@@ -38,12 +42,31 @@ pub struct Updater {
 
 impl AppContext {
     pub fn new_updater(&self) -> Result<Updater> {
-        let lookup = self
-            .config
-            .lookup
-            .clone()
-            .into_lookup()
-            .context("unable to initialize lookup service")?;
+        let lookup_config = self.config.lookup.clone();
+        let mut providers = HashMap::new();
+        // Global providers: fail fast if they can't be initialized.
+        for cfg in [&lookup_config.v4, &lookup_config.v6] {
+            if !providers.contains_key(cfg) {
+                providers.insert(
+                    cfg.clone(),
+                    cfg.to_provider()
+                        .context("unable to initialize lookup provider")?,
+                );
+            }
+        }
+        // Per-record overrides: warn and skip on failure so other records still update.
+        for rec in self.config.records.v4.iter().chain(&self.config.records.v6) {
+            if let Some(cfg) = &rec.lookup
+                && !providers.contains_key(cfg)
+            {
+                match cfg.to_provider() {
+                    Ok(provider) => {
+                        providers.insert(cfg.clone(), provider);
+                    }
+                    Err(e) => warn!("Failed to initialize custom lookup provider: {e}"),
+                }
+            }
+        }
         let cf = CloudFlare::new(&self.config.token)?;
         let id_cache = RefCell::new(IdCache::load().unwrap_or_else(|e| {
             warn!("Failed to load cache: {e}");
@@ -51,7 +74,8 @@ impl AppContext {
         }));
         let lookup_cache = RefCell::new(LookupCache::default());
         Ok(Updater {
-            lookup,
+            lookup_config,
+            providers,
             cf,
             id_cache,
             lookup_cache,
@@ -83,6 +107,33 @@ impl Updater {
             return;
         }
 
+        // Group records by their effective lookup config (per-record override or global default).
+        let mut groups: HashMap<&ProviderConfig, Vec<&ZoneRecord>> = HashMap::new();
+        for rec in records {
+            let cfg = rec.lookup.as_ref().unwrap_or(&self.lookup_config.v4);
+            groups.entry(cfg).or_default().push(rec);
+        }
+
+        let futs: Vec<_> = groups
+            .iter()
+            .filter_map(|(cfg, recs)| {
+                if let Some(provider) = self.providers.get(*cfg) {
+                    Some(self.update_v4_with_provider(provider, cfg, recs))
+                } else {
+                    error!("Lookup provider unexpectedly missing for {cfg:?}");
+                    None
+                }
+            })
+            .collect();
+        join_all(futs).await;
+    }
+
+    async fn update_v4_with_provider(
+        &self,
+        provider: &Provider,
+        cache_key: &ProviderConfig,
+        records: &[&ZoneRecord],
+    ) {
         let mut staged: Option<Ipv4Addr> = None;
         let mut attempt: u32 = 0;
 
@@ -91,9 +142,9 @@ impl Updater {
 
             // Perform lookup only when we don't have a staged IP yet.
             if staged.is_none() {
-                match self.lookup.lookup_v4().await {
+                match provider.lookup_v4().await {
                     Ok(addr) => {
-                        match self.lookup_cache.borrow_mut().update_v4(addr) {
+                        match self.lookup_cache.borrow_mut().update_v4(cache_key, addr) {
                             UpdateResult::Initialized => info!("Current IPv4: {addr}"),
                             UpdateResult::Updated(old) => {
                                 info!("Current IPv4: {addr} (was {old})");
@@ -151,6 +202,32 @@ impl Updater {
             return;
         }
 
+        let mut groups: HashMap<&ProviderConfig, Vec<&ZoneRecord>> = HashMap::new();
+        for rec in records {
+            let cfg = rec.lookup.as_ref().unwrap_or(&self.lookup_config.v6);
+            groups.entry(cfg).or_default().push(rec);
+        }
+
+        let futs: Vec<_> = groups
+            .iter()
+            .filter_map(|(cfg, recs)| {
+                if let Some(provider) = self.providers.get(*cfg) {
+                    Some(self.update_v6_with_provider(provider, cfg, recs))
+                } else {
+                    error!("Lookup provider unexpectedly missing for {cfg:?}");
+                    None
+                }
+            })
+            .collect();
+        join_all(futs).await;
+    }
+
+    async fn update_v6_with_provider(
+        &self,
+        provider: &Provider,
+        cache_key: &ProviderConfig,
+        records: &[&ZoneRecord],
+    ) {
         let mut staged: Option<Ipv6Addr> = None;
         let mut attempt: u32 = 0;
 
@@ -159,9 +236,9 @@ impl Updater {
 
             // Perform lookup only when we don't have a staged IP yet.
             if staged.is_none() {
-                match self.lookup.lookup_v6().await {
+                match provider.lookup_v6().await {
                     Ok(addr) => {
-                        match self.lookup_cache.borrow_mut().update_v6(addr) {
+                        match self.lookup_cache.borrow_mut().update_v6(cache_key, addr) {
                             UpdateResult::Initialized => info!("Current IPv6: {addr}"),
                             UpdateResult::Updated(old) => {
                                 info!("Current IPv6: {addr} (was {old})");
@@ -249,9 +326,10 @@ impl Updater {
                 .create_record(&zone_id, &rec.name, addr)
                 .await
                 .context("Failed to create the record")?;
-            self.update_cache(&rec.name, record.clone())?;
+            self.update_cache(&rec.name, &record)?;
             record
         };
+
         Ok(record)
     }
 }
@@ -276,7 +354,7 @@ impl Updater {
         Ok(self.id_cache.borrow().get_record(name, addr))
     }
 
-    fn update_cache(&self, name: &str, record: DnsRecord) -> Result<()> {
+    fn update_cache(&self, name: &str, record: &DnsRecord) -> Result<()> {
         let mut cache = self.id_cache.borrow_mut();
         cache.update_record(name, record);
         cache.save()
@@ -294,7 +372,7 @@ impl Updater {
     async fn cache_records(&self, zone_id: &str, name: &str) -> Result<()> {
         let records = self.cf.list_records(zone_id, name).await?;
         let mut cache = self.id_cache.borrow_mut();
-        for rec in records {
+        for rec in &records {
             cache.update_record(name, rec);
         }
         cache.save()
@@ -351,5 +429,38 @@ mod tests {
             backoff_delay(u32::MAX, Duration::from_secs(5), 2.0),
             Duration::MAX
         );
+    }
+
+    #[test]
+    fn custom_provider_initialization_failure_skipped() -> Result<()> {
+        let config = crate::config::Config::from_toml(
+            r#"
+                token = "test_token"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v4 = { lookup = { provider = "interface", interface = "" } }
+            "#,
+        )?;
+
+        let ctx = AppContext {
+            cli: crate::cli::Cli { command: None },
+            config,
+        };
+
+        // This should not crash, it should log a warning and return the Updater successfully,
+        // but with the failed provider missing from the providers map.
+        let updater = ctx.new_updater()?;
+
+        // The global providers should be initialized (default is ICanHazIp).
+        assert!(updater.providers.contains_key(&ProviderConfig::ICanHazIp));
+
+        // The failed custom provider should not be present.
+        let custom_cfg = ProviderConfig::Interface {
+            interface: String::new(),
+        };
+        assert!(!updater.providers.contains_key(&custom_cfg));
+
+        Ok(())
     }
 }

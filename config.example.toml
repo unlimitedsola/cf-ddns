@@ -72,3 +72,13 @@ v4 = true
 name = "v6.example.net"
 zone = "example.net"
 v6 = true
+
+# Per-record lookup override: use a specific provider for this record
+# instead of the global [lookup] configuration.
+# [[records]]
+# name = "internal.example.com"
+# zone = "example.com"
+# v4 = { lookup = { provider = "interface", interface = "eth0" } }
+# v6 = { lookup = { provider = "interface", interface = "eth0" } }
+# v4 = { lookup = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" } }
+# v4 = { lookup = "icanhazip" }

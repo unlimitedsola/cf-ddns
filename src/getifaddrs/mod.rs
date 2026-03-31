@@ -81,14 +81,13 @@ pub fn getifaddrs() -> std::io::Result<Vec<Interface>> {
 }
 
 #[cfg(test)]
-#[expect(clippy::unwrap_used, reason = "unwrap is expected in tests")]
 mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
-    fn loopback_interface_exists() {
-        let interfaces = getifaddrs().unwrap();
+    fn loopback_interface_exists() -> anyhow::Result<()> {
+        let interfaces = getifaddrs()?;
         let loopback = interfaces.iter().find(|i| {
             i.flags.contains(InterfaceFlags::LOOPBACK)
                 && i.addresses
@@ -96,14 +95,16 @@ mod tests {
                     .any(|a| a.address == IpAddr::V4(Ipv4Addr::LOCALHOST))
         });
         assert!(loopback.is_some(), "No loopback IPv4 interface found");
+        Ok(())
     }
 
     #[test]
-    fn non_loopback_interface_exists() {
-        let interfaces = getifaddrs().unwrap();
+    fn non_loopback_interface_exists() -> anyhow::Result<()> {
+        let interfaces = getifaddrs()?;
         let non_loopback = interfaces
             .iter()
             .find(|i| !i.flags.contains(InterfaceFlags::LOOPBACK));
         assert!(non_loopback.is_some(), "No non-loopback interface found");
+        Ok(())
     }
 }

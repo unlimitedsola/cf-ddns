@@ -157,19 +157,21 @@ impl Drop for AlignedBuf {
 
 #[cfg(test)]
 mod tests {
-    use crate::service::windows::sys::helper::is_in_windows_service;
+    use super::*;
 
     #[test]
-    fn test_should_not_in_windows_service() {
-        assert!(!is_in_windows_service().unwrap())
+    fn test_should_not_in_windows_service() -> Result<()> {
+        assert!(!is_in_windows_service()?);
+        Ok(())
     }
 
     #[test]
     #[ignore]
-    fn mem_leak_test() {
+    fn mem_leak_test() -> Result<()> {
         // maybe? dunno how to test memory leaks :P
         for _ in 0..1_000_000 {
-            assert!(!is_in_windows_service().unwrap())
+            assert!(!is_in_windows_service()?);
         }
+        Ok(())
     }
 }

@@ -17,7 +17,7 @@ use crate::service::windows::sys::helper::parse_service_entry_arguments;
 
 fn running_service() -> MutexGuard<'static, Option<RunningService>> {
     static SERVICE: Mutex<Option<RunningService>> = Mutex::new(None);
-    SERVICE.lock().unwrap()
+    SERVICE.lock().expect("mutex is not poisoned")
 }
 
 struct RunningService {
@@ -46,7 +46,9 @@ pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
 
 pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
     let args = unsafe { parse_service_entry_arguments(argc, argv) };
-    run_service(args).unwrap()
+    if let Err(e) = run_service(args) {
+        error!("Service failed to run: {:?}", e);
+    }
 }
 
 fn run_service(args: Vec<String>) -> Result<()> {

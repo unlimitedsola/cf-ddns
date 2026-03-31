@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 
 use crate::current_exe;
-use crate::lookup::{ExecLookup, ICanHazIp, InterfaceLookup, Lookup, Provider};
+use crate::lookup::{ExecLookup, ICanHazIp, InterfaceLookup, Provider};
 
 mod de;
 
@@ -45,7 +45,7 @@ impl Config {
             .with_context(|| format!("unable to parse config file: {}", path.as_ref().display()))
     }
 
-    fn from_toml(s: &str) -> Result<Self> {
+    pub(crate) fn from_toml(s: &str) -> Result<Self> {
         toml::from_str(s).context("unable to parse config content")
     }
 }
@@ -82,20 +82,11 @@ impl FromStr for LookupConfig {
     }
 }
 
-impl LookupConfig {
-    pub fn into_lookup(self) -> Result<Lookup> {
-        Ok(Lookup {
-            v4: self.v4.into_provider()?,
-            v6: self.v6.into_provider()?,
-        })
-    }
-}
-
 /// Lookup provider for a single protocol.
 ///
 /// Accepts either a provider name string (e.g. `"icanhazip"`) or a provider
 /// config table (e.g. `{ provider = "exec", cmd = "..." }`).
-#[derive(Deserialize, Debug, Default, Clone, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash)]
 #[serde(tag = "provider", rename_all = "lowercase")]
 pub enum ProviderConfig {
     #[default]
@@ -128,13 +119,13 @@ impl FromStr for ProviderConfig {
 }
 
 impl ProviderConfig {
-    fn into_provider(self) -> Result<Provider> {
+    pub fn to_provider(&self) -> Result<Provider> {
         match self {
             ProviderConfig::ICanHazIp => Ok(Provider::ICanHazIp(ICanHazIp::new()?)),
-            ProviderConfig::Exec { cmd } => Ok(Provider::Exec(ExecLookup::new(cmd))),
-            ProviderConfig::Interface { interface } => {
-                Ok(Provider::Interface(InterfaceLookup::new(interface)?))
-            }
+            ProviderConfig::Exec { cmd } => Ok(Provider::Exec(ExecLookup::new(cmd.clone()))),
+            ProviderConfig::Interface { interface } => Ok(Provider::Interface(
+                InterfaceLookup::new(interface.clone())?,
+            )),
         }
     }
 }
@@ -184,30 +175,27 @@ impl Records {
 pub struct ZoneRecord {
     pub zone: String,
     pub name: String,
+    /// Per-record lookup provider override. `None` means use the global provider.
+    pub lookup: Option<ProviderConfig>,
 }
-
 #[cfg(test)]
-#[expect(
-    clippy::unwrap_used,
-    clippy::duration_suboptimal_units,
-    reason = "unwrap and raw duration units are acceptable in tests"
-)]
 mod tests {
     use super::*;
 
     #[test]
-    fn minimal() {
-        let cfg = Config::from_toml(r#"token = "test""#).unwrap();
+    fn minimal() -> Result<()> {
+        let cfg = Config::from_toml(r#"token = "test""#)?;
         assert_eq!(cfg.lookup, LookupConfig::default());
-        assert_eq!(cfg.interval, Duration::from_secs(300));
+        assert_eq!(cfg.interval, Duration::from_mins(5));
         assert_eq!(cfg.retry.base_delay, Duration::from_secs(5));
         assert_eq!(cfg.retry.max_attempts, 5);
         assert!(cfg.records.v4.is_empty());
         assert!(cfg.records.v6.is_empty());
+        Ok(())
     }
 
     #[test]
-    fn overridden() {
+    fn overridden() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
@@ -217,25 +205,25 @@ mod tests {
                 backoff_multiplier = 3.0
                 max_attempts = 3
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(cfg.lookup, LookupConfig::default());
-        assert_eq!(cfg.interval, Duration::from_secs(60));
+        assert_eq!(cfg.interval, Duration::from_mins(1));
         assert_eq!(cfg.retry.base_delay, Duration::from_secs(10));
         assert!((cfg.retry.backoff_multiplier - 3.0).abs() < f64::EPSILON);
         assert_eq!(cfg.retry.max_attempts, 3);
+        Ok(())
     }
 
     #[test]
-    fn lookup_icanhazip_string() {
+    fn lookup_icanhazip_string() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
                 lookup = "icanhazip"
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(cfg.lookup, LookupConfig::default());
+        Ok(())
     }
 
     #[test]
@@ -250,15 +238,14 @@ mod tests {
     }
 
     #[test]
-    fn lookup_split_v4_only() {
+    fn lookup_split_v4_only() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
                 [lookup]
                 v4 = "icanhazip"
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(
             cfg.lookup,
             LookupConfig {
@@ -266,10 +253,11 @@ mod tests {
                 v6: ProviderConfig::ICanHazIp,
             }
         );
+        Ok(())
     }
 
     #[test]
-    fn lookup_split_both_simple() {
+    fn lookup_split_both_simple() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
@@ -277,13 +265,13 @@ mod tests {
                 v4 = "icanhazip"
                 v6 = "icanhazip"
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(cfg.lookup, LookupConfig::default());
+        Ok(())
     }
 
     #[test]
-    fn lookup_split_exec_detailed() {
+    fn lookup_split_exec_detailed() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
@@ -291,8 +279,7 @@ mod tests {
                 v4 = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" }
                 v6 = { provider = "exec", cmd = "curl -s ipv6.icanhazip.com" }
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(
             cfg.lookup,
             LookupConfig {
@@ -304,18 +291,18 @@ mod tests {
                 },
             }
         );
+        Ok(())
     }
 
     #[test]
-    fn lookup_split_interface_detailed() {
+    fn lookup_split_interface_detailed() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
                 [lookup]
                 v6 = { provider = "interface", interface = "eth0" }
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(
             cfg.lookup,
             LookupConfig {
@@ -325,10 +312,11 @@ mod tests {
                 },
             }
         );
+        Ok(())
     }
 
     #[test]
-    fn lookup_split_mixed() {
+    fn lookup_split_mixed() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
@@ -336,8 +324,7 @@ mod tests {
                 v4 = "icanhazip"
                 v6 = { provider = "exec", cmd = "dig -6 +short myip.opendns.com @resolver1.opendns.com" }
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(
             cfg.lookup,
             LookupConfig {
@@ -347,18 +334,18 @@ mod tests {
                 },
             }
         );
+        Ok(())
     }
 
     #[test]
-    fn lookup_split_icanhazip_detailed() {
+    fn lookup_split_icanhazip_detailed() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
                 [lookup]
                 v4 = { provider = "icanhazip" }
             "#,
-        )
-        .unwrap();
+        )?;
         assert_eq!(
             cfg.lookup,
             LookupConfig {
@@ -366,6 +353,7 @@ mod tests {
                 v6: ProviderConfig::ICanHazIp,
             }
         );
+        Ok(())
     }
 
     #[test]
@@ -404,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn records() {
+    fn records() -> Result<()> {
         let cfg = Config::from_toml(
             r#"
                 token = "test"
@@ -420,13 +408,114 @@ mod tests {
                 zone = "example.com"
                 v6 = true
             "#,
-        )
-        .unwrap();
+        )?;
         assert!(!cfg.records.v4.iter().any(|r| r.name == "www.example.com"));
         assert!(!cfg.records.v6.iter().any(|r| r.name == "www.example.com"));
         assert!(cfg.records.v4.iter().any(|r| r.name == "v4.example.com"));
         assert!(!cfg.records.v6.iter().any(|r| r.name == "v4.example.com"));
         assert!(!cfg.records.v4.iter().any(|r| r.name == "v6.example.com"));
         assert!(cfg.records.v6.iter().any(|r| r.name == "v6.example.com"));
+        // Boolean true should produce no per-record override (use global provider).
+        assert!(cfg.records.v4.iter().all(|r| r.lookup.is_none()));
+        assert!(cfg.records.v6.iter().all(|r| r.lookup.is_none()));
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_lookup_icanhazip() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v4 = { lookup = { provider = "icanhazip" } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v4.len(), 1);
+        assert_eq!(cfg.records.v4[0].lookup, Some(ProviderConfig::ICanHazIp),);
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_lookup_string_shorthand() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v4 = { lookup = "icanhazip" }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v4.len(), 1);
+        assert_eq!(cfg.records.v4[0].lookup, Some(ProviderConfig::ICanHazIp));
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_lookup_interface() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v6 = { lookup = { provider = "interface", interface = "eth0" } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v6.len(), 1);
+        assert_eq!(
+            cfg.records.v6[0].lookup,
+            Some(ProviderConfig::Interface {
+                interface: "eth0".to_owned()
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_lookup_exec() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v4 = { lookup = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v4.len(), 1);
+        assert_eq!(
+            cfg.records.v4[0].lookup,
+            Some(ProviderConfig::Exec {
+                cmd: "curl -s ipv4.icanhazip.com".to_owned()
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_lookup_mixed_v4_bool_v6_custom() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v4 = true
+                v6 = { lookup = { provider = "interface", interface = "eth0" } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v4.len(), 1);
+        assert_eq!(cfg.records.v4[0].lookup, None);
+        assert_eq!(cfg.records.v6.len(), 1);
+        assert_eq!(
+            cfg.records.v6[0].lookup,
+            Some(ProviderConfig::Interface {
+                interface: "eth0".to_owned()
+            })
+        );
+        Ok(())
     }
 }

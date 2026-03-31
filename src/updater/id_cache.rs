@@ -34,10 +34,10 @@ impl RecordIdCache {
         }
     }
 
-    pub fn update(&mut self, record: DnsRecord) {
-        match record.content {
-            A { .. } => self.v4 = Some(record.id.into()),
-            AAAA { .. } => self.v6 = Some(record.id.into()),
+    pub fn update(&mut self, record: &DnsRecord) {
+        match &record.content {
+            A { .. } => self.v4 = Some(record.id.clone().into()),
+            AAAA { .. } => self.v6 = Some(record.id.clone().into()),
         }
     }
 }
@@ -73,7 +73,7 @@ impl IdCache {
         self.zones.insert(zone, id.into());
     }
 
-    pub fn update_record(&mut self, name: &str, record: DnsRecord) {
+    pub fn update_record(&mut self, name: &str, record: &DnsRecord) {
         self.records
             // it is most likely that the record is not present
             // in the cache when this function is called

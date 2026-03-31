@@ -98,7 +98,7 @@ impl Drop for AdapterAddressBuf {
             self.size,
             std::mem::align_of::<IP_ADAPTER_ADDRESSES_LH>(),
         )
-        .unwrap();
+        .expect("align_of is a power of two and size matches");
         unsafe { std::alloc::dealloc(self.ptr as *mut u8, layout) };
     }
 }
