@@ -37,7 +37,7 @@ libc = "0.2.186"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 netlink-packet-core = "0.8"
-netlink-packet-route = "0.30"
+netlink-packet-route = "0.31"
 netlink-sys = "0.8"
 
 [target.'cfg(windows)'.dependencies.windows]
