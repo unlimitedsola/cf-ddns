@@ -7,8 +7,8 @@ use serde::{Deserialize, Deserializer, de};
 
 use super::{Records, ZoneRecord};
 
-pub(super) fn default_interval() -> Duration {
-    Duration::from_secs(300)
+pub(super) const fn default_interval() -> Duration {
+    Duration::from_mins(5)
 }
 
 pub(super) fn duration_from_secs<'de, D: Deserializer<'de>>(d: D) -> Result<Duration, D::Error> {

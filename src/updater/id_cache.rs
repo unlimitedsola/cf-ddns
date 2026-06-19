@@ -29,8 +29,8 @@ pub struct RecordIdCache {
 impl RecordIdCache {
     pub fn get_for(&self, addr: &IpAddr) -> Option<Rc<str>> {
         match addr {
-            IpAddr::V4(_) => self.v4.as_ref().cloned(),
-            IpAddr::V6(_) => self.v6.as_ref().cloned(),
+            IpAddr::V4(_) => self.v4.clone(),
+            IpAddr::V6(_) => self.v6.clone(),
         }
     }
 

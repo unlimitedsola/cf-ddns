@@ -1,4 +1,4 @@
-//! Client exchange implementation for CloudFlare API
+//! Client exchange implementation for Cloudflare API
 
 use anyhow::Result;
 use anyhow::bail;

@@ -14,7 +14,7 @@ pub struct DnsRecord {
     /// DNS record identifier tag
     pub id: String,
     /// DNS record name
-    #[allow(dead_code)] // for future use
+    #[expect(dead_code, reason = "for future use")]
     pub name: String,
     /// Type of the DNS record that also holds the record value
     #[serde(flatten)]
@@ -25,7 +25,7 @@ pub struct DnsRecord {
 /// We only care about A and AAAA records for now.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type")]
-#[allow(clippy::upper_case_acronyms)]
+#[expect(clippy::upper_case_acronyms, reason = "match Cloudflare API spelling")]
 pub enum DnsContent {
     A { content: Ipv4Addr },
     AAAA { content: Ipv6Addr },

@@ -220,15 +220,12 @@ impl Updater {
             IpAddr::V6(_) => "AAAA",
         };
         info!("Updating {rec_type} record '{}'", rec.name);
-        match self.update_record(rec, addr).await {
-            Err(e) => {
-                error!("Failed to update {rec_type} record '{}': {e}", rec.name);
-                false
-            }
-            Ok(_) => {
-                info!("Updated {rec_type} record '{}'", rec.name);
-                true
-            }
+        if let Err(e) = self.update_record(rec, addr).await {
+            error!("Failed to update {rec_type} record '{}': {e}", rec.name);
+            false
+        } else {
+            info!("Updated {rec_type} record '{}'", rec.name);
+            true
         }
     }
 
@@ -241,21 +238,19 @@ impl Updater {
             .record_id(&zone_id, &rec.name, &addr)
             .await
             .context("Failed to get the record identifier")?;
-        let record = match rec_id {
-            Some(rec_id) => self
-                .cf
+        let record = if let Some(rec_id) = rec_id {
+            self.cf
                 .update_record(&zone_id, &rec_id, &rec.name, addr)
                 .await
-                .context("Failed to update the record")?,
-            None => {
-                let record = self
-                    .cf
-                    .create_record(&zone_id, &rec.name, addr)
-                    .await
-                    .context("Failed to create the record")?;
-                self.update_cache(&rec.name, record.clone())?;
-                record
-            }
+                .context("Failed to update the record")?
+        } else {
+            let record = self
+                .cf
+                .create_record(&zone_id, &rec.name, addr)
+                .await
+                .context("Failed to create the record")?;
+            self.update_cache(&rec.name, record.clone())?;
+            record
         };
         Ok(record)
     }
@@ -290,18 +285,18 @@ impl Updater {
     async fn cache_zones(&self) -> Result<()> {
         let zones = self.cf.list_zones().await?;
         let mut cache = self.id_cache.borrow_mut();
-        zones
-            .into_iter()
-            .for_each(|zone| cache.save_zone(zone.name, zone.id));
+        for zone in zones {
+            cache.save_zone(zone.name, zone.id);
+        }
         cache.save()
     }
 
     async fn cache_records(&self, zone_id: &str, name: &str) -> Result<()> {
         let records = self.cf.list_records(zone_id, name).await?;
         let mut cache = self.id_cache.borrow_mut();
-        records
-            .into_iter()
-            .for_each(|rec| cache.update_record(name, rec));
+        for rec in records {
+            cache.update_record(name, rec);
+        }
         cache.save()
     }
 }
@@ -312,7 +307,7 @@ impl Updater {
 /// Attempt 1 returns `base_delay` unchanged.
 /// Returns `Duration::MAX` on overflow (caller interprets this as "give up").
 pub(crate) fn backoff_delay(attempt: u32, retry_interval: Duration, multiplier: f64) -> Duration {
-    let exp = attempt.saturating_sub(1).min(i32::MAX as u32) as i32;
+    let exp = attempt.saturating_sub(1).min(i32::MAX as u32).cast_signed();
     let delay = retry_interval.as_secs_f64() * multiplier.powi(exp);
     if delay.is_finite() {
         Duration::from_secs_f64(delay)

@@ -32,7 +32,7 @@ impl CloudFlare {
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         let http = ClientBuilder::new()
             .default_headers(headers)
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_mins(1))
             .build()?;
         Ok(CloudFlare { http })
     }

@@ -9,7 +9,7 @@ pub struct ExecLookup {
 }
 
 impl ExecLookup {
-    pub fn new(cmd: String) -> Self {
+    pub const fn new(cmd: String) -> Self {
         Self { cmd }
     }
 
@@ -77,6 +77,5 @@ fn find_shell() -> String {
 #[cfg(not(windows))]
 fn find_in_path(name: &str) -> bool {
     std::env::var_os("PATH")
-        .map(|paths| std::env::split_paths(&paths).any(|dir| dir.join(name).is_file()))
-        .unwrap_or(false)
+        .is_some_and(|paths| std::env::split_paths(&paths).any(|dir| dir.join(name).is_file()))
 }

@@ -60,3 +60,86 @@ strip = true
 lto = true
 codegen-units = 1
 panic = "abort"
+
+[lints]
+workspace = true
+
+[workspace.lints.clippy]
+# Pedantic catches most of the readability/consistency issues we care
+# about. The whole `nursery` group is explicitly not recommended; useful
+# nursery lints are cherry-picked individually below.
+pedantic = { level = "warn", priority = -1 }
+
+# Only meaningful for published libraries with stable Result-returning APIs.
+missing_errors_doc = "allow"
+# Only meaningful for published libraries with stable APIs.
+missing_panics_doc = "allow"
+# Opinionated; flags every getter that returns a value.
+must_use_candidate = "allow"
+# False-positives on intentional ownership transfers (worker threads,
+# `tokio::spawn`, builders, `mlua` callbacks).
+needless_pass_by_value = "allow"
+
+# Holds-while-blocked is a recurring concern in our async code; see the
+# AGENTS.md note on atomic session-map writes.
+significant_drop_tightening = "warn"
+# Free wins, no false-positives observed.
+missing_const_for_fn = "warn"
+# Keeps trait derives consistent across the codebase.
+derive_partial_eq_without_eq = "warn"
+# Small perf win, low false-positive rate.
+redundant_clone = "warn"
+# Catches `unwrap_or(expensive())` where `unwrap_or_else` is required.
+or_fun_call = "warn"
+# Prefers `==` over `if let` for trivial pattern matches.
+equatable_if_let = "warn"
+# Dedups suffix/prefix code shared between match arms.
+branches_sharing_code = "warn"
+
+# `unwrap()` without a message makes failures hard to diagnose; use
+# `expect("reason")` or propagate the error instead.
+unwrap_used = "warn"
+# `dbg!()` is debugging scaffolding; never ship it.
+dbg_macro = "warn"
+# Placeholder panic; shouldn't reach production.
+todo = "warn"
+# Placeholder panic; shouldn't reach production.
+unimplemented = "warn"
+# Server code uses `tracing` for all output; stray `println!` bypasses log
+# levels and structured fields. CLI binaries like `bench-client` opt out via
+# a crate-level `#![expect]` because cargo does not allow per-package
+# `[lints.clippy]` overrides on top of `workspace = true`.
+print_stdout = "warn"
+print_stderr = "warn"
+# Long-running services shouldn't call `std::process::exit` directly; return
+# from `main` so destructors run and shutdown hooks fire.
+exit = "warn"
+# Leaking destructors silently is almost never intended.
+mem_forget = "warn"
+# `.to_owned()` expresses the intent more clearly than `.to_string()` on a
+# value that's already a string. (`string_to_string` is already covered by
+# the pedantic `implicit_clone` lint.)
+str_to_string = "warn"
+# `Arc::clone(&x)` is more searchable than `x.clone()` and signals a cheap
+# refcount bump rather than a deep copy.
+clone_on_ref_ptr = "warn"
+# Enforces the `foo/mod.rs` layout for domain modules; warns on the
+# `foo.rs + foo/` mixed style.
+self_named_module_files = "warn"
+# Catches `loop {}` with no break or diverging call.
+infinite_loop = "warn"
+# Literals like `1.1f32` silently lose precision.
+lossy_float_literal = "warn"
+# `Foo { a, b, .. }` when no fields are actually omitted hides whether new
+# fields would be unhandled — drop the `..` so adding a field is a compile
+# error rather than a silent miss.
+rest_pat_in_fully_bound_structs = "warn"
+# Prefer `read_to_end` / `read_to_string` over manual read loops.
+verbose_file_reads = "warn"
+# `#[expect(...)]` makes a suppression self-cleaning: when the warning
+# stops firing the attribute itself becomes a lint error and the
+# allowance gets removed. `#[allow(...)]` silently rots.
+allow_attributes = "warn"
+# Requires a `reason = "…"` on every `#[allow]` and `#[expect]` so the
+# intent is always documented alongside the suppression.
+allow_attributes_without_reason = "warn"

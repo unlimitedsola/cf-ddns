@@ -42,7 +42,7 @@ mod tests {
         let exec = "/usr/local/bin/cf-ddns";
         assert_eq!(
             gen_unit_def(exec),
-            r#"[Unit]
+            r"[Unit]
 Description=Updates Cloudflare DNS records with the current public IP address.
 After=network-online.target
 Wants=network-online.target
@@ -54,7 +54,7 @@ Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-"#,
-        )
+",
+        );
     }
 }

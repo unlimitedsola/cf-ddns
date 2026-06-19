@@ -15,7 +15,7 @@ impl ICanHazIp {
     pub fn new() -> Result<Self> {
         let client = Client::builder()
             .no_proxy()
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_mins(1))
             .build()?;
         Ok(Self { client })
     }
@@ -40,19 +40,25 @@ impl LookupSpec for ICanHazIp {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::unwrap_used,
+    clippy::print_stdout,
+    clippy::semicolon_if_nothing_returned,
+    reason = "unwrap, print_stdout, and semicolon allowed in tests"
+)]
 mod tests {
     use crate::lookup::LookupSpec;
     use crate::lookup::icanhazip::ICanHazIp;
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires public network"]
     async fn v4_test() {
         let r = ICanHazIp::new().unwrap().lookup_v4().await.unwrap();
         println!("{r:?}")
     }
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "requires public network"]
     async fn v6_test() {
         let r = ICanHazIp::new().unwrap().lookup_v6().await.unwrap();
         println!("{r:?}")

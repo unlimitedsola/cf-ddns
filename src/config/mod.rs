@@ -40,9 +40,9 @@ impl Config {
 
     fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
         let file = read_to_string(path.as_ref())
-            .with_context(|| format!("unable to read config file: {:?}", path.as_ref()))?;
+            .with_context(|| format!("unable to read config file: {}", path.as_ref().display()))?;
         Self::from_toml(&file)
-            .with_context(|| format!("unable to parse config file: {:?}", path.as_ref()))
+            .with_context(|| format!("unable to parse config file: {}", path.as_ref().display()))
     }
 
     fn from_toml(s: &str) -> Result<Self> {
@@ -186,6 +186,11 @@ pub struct ZoneRecord {
 }
 
 #[cfg(test)]
+#[expect(
+    clippy::unwrap_used,
+    clippy::duration_suboptimal_units,
+    reason = "unwrap and raw duration units are acceptable in tests"
+)]
 mod tests {
     use super::*;
 

@@ -15,15 +15,15 @@ impl InterfaceFlags {
     pub const UP: Self = Self(0x1);
     pub const LOOPBACK: Self = Self(0x8);
 
-    fn empty() -> Self {
+    const fn empty() -> Self {
         Self(0)
     }
 
-    fn with(self, other: Self) -> Self {
+    const fn with(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
 
-    pub fn contains(self, other: Self) -> bool {
+    pub const fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
     }
 }
@@ -38,15 +38,15 @@ impl AddressFlags {
     /// Address whose preferred lifetime has expired; the OS will not use it for new connections.
     pub const DEPRECATED: Self = Self(0x2);
 
-    fn empty() -> Self {
+    const fn empty() -> Self {
         Self(0)
     }
 
-    fn with(self, other: Self) -> Self {
+    const fn with(self, other: Self) -> Self {
         Self(self.0 | other.0)
     }
 
-    pub fn contains(self, other: Self) -> bool {
+    pub const fn contains(self, other: Self) -> bool {
         self.0 & other.0 == other.0
     }
 }
@@ -81,6 +81,7 @@ pub fn getifaddrs() -> std::io::Result<Vec<Interface>> {
 }
 
 #[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "unwrap is expected in tests")]
 mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr};

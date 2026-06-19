@@ -1,3 +1,5 @@
+#![expect(clippy::print_stdout, reason = "debug commands print to stdout")]
+
 use std::net::IpAddr;
 
 use anyhow::{Context, Result};

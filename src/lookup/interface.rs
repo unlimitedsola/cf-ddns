@@ -71,7 +71,7 @@ impl InterfaceLookup {
                 };
                 if !candidates.contains(&ip) {
                     candidates.push(ip);
-                };
+                }
             }
         }
 
@@ -126,7 +126,11 @@ impl LookupSpec for InterfaceLookup {
     }
 }
 
-pub(crate) fn is_public_ipv4(addr: Ipv4Addr) -> bool {
+#[expect(
+    clippy::unnested_or_patterns,
+    reason = "flat patterns are clearer to read"
+)]
+pub(crate) const fn is_public_ipv4(addr: Ipv4Addr) -> bool {
     !matches!(
         addr.octets(),
         [0, _, _, _]
@@ -145,7 +149,7 @@ pub(crate) fn is_public_ipv4(addr: Ipv4Addr) -> bool {
     )
 }
 
-pub(crate) fn is_public_ipv6(addr: Ipv6Addr) -> bool {
+pub(crate) const fn is_public_ipv6(addr: Ipv6Addr) -> bool {
     let [first, second, ..] = addr.segments();
 
     !addr.is_unspecified()
@@ -158,6 +162,7 @@ pub(crate) fn is_public_ipv6(addr: Ipv6Addr) -> bool {
 }
 
 #[cfg(test)]
+#[expect(clippy::unwrap_used, reason = "unwrap is expected in tests")]
 mod tests {
     use super::*;
 
@@ -181,7 +186,7 @@ mod tests {
         assert!(!is_public_ipv4(Ipv4Addr::new(10, 0, 0, 1))); // 10/8
         assert!(!is_public_ipv4(Ipv4Addr::new(100, 64, 0, 1))); // CGNAT 100.64/10
         assert!(!is_public_ipv4(Ipv4Addr::new(100, 127, 255, 1))); // CGNAT upper bound
-        assert!(!is_public_ipv4(Ipv4Addr::new(127, 0, 0, 1))); // loopback
+        assert!(!is_public_ipv4(Ipv4Addr::LOCALHOST)); // loopback
         assert!(!is_public_ipv4(Ipv4Addr::new(169, 254, 1, 1))); // link-local
         assert!(!is_public_ipv4(Ipv4Addr::new(172, 16, 0, 1))); // 172.16/12 lower
         assert!(!is_public_ipv4(Ipv4Addr::new(172, 31, 0, 1))); // 172.16/12 upper
@@ -192,7 +197,7 @@ mod tests {
         assert!(!is_public_ipv4(Ipv4Addr::new(198, 51, 100, 1))); // TEST-NET-2
         assert!(!is_public_ipv4(Ipv4Addr::new(203, 0, 113, 1))); // TEST-NET-3
         assert!(!is_public_ipv4(Ipv4Addr::new(224, 0, 0, 1))); // multicast
-        assert!(!is_public_ipv4(Ipv4Addr::new(255, 255, 255, 255))); // broadcast
+        assert!(!is_public_ipv4(Ipv4Addr::BROADCAST)); // broadcast
     }
 
     // --- is_public_ipv6 ---
