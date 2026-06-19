@@ -62,6 +62,7 @@ pub struct LookupConfig {
     pub v6: ProviderConfig,
 }
 
+// FIXME: remove the deprecated string form in a future version
 impl FromStr for LookupConfig {
     type Err = String;
 

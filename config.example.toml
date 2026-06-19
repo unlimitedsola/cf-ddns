@@ -1,36 +1,50 @@
+# Cloudflare API Token. Requires the "Zone.DNS" permission (read/write access to DNS records).
 token = "<your-cloudflare-token>"
 
-# update interval in seconds, when running in daemon mode
+# Update check interval in seconds (used in daemon/service mode).
+# Default: 300 (5 minutes)
 # interval = 300
 
-# lookup provider for retrieving public IP
-# defaults to icanhazip for both v4 and v6; configure per-protocol with:
+# Per-protocol public IP lookup configuration.
+# Accepts a provider name string or a configuration table for each protocol (v4 and v6).
+# If a protocol is omitted under [lookup], it defaults to "icanhazip".
 [lookup]
+# 1. "icanhazip" provider (default): queries icanhazip.com to find the public IP.
 # v4 = "icanhazip"
+# v6 = { provider = "icanhazip" }
+#
+# 2. "exec" provider: runs a custom shell command and parses stdout as the IP.
 # v6 = { provider = "exec", cmd = "curl -s ipv6.icanhazip.com" }
+#
+# 3. "interface" provider: reads the IP assigned to a local network interface,
+# filtering out loopback, private, temporary, and deprecated addresses.
 # v6 = { provider = "interface", interface = "eth0" }
 
-# Retry configuration for failed updates.
+# Retry configuration for failed updates within each interval.
 [retry]
-# base delay in seconds before the first retry attempt
+# Seconds to wait before the first retry attempt.
+# Default: 5
 # base_delay = 5
-
-# multiplier applied after each failed attempt
+#
+# Exponential backoff growth factor.
+# Default: 2.0
 # backoff_multiplier = 2.0
-
-# stop retrying after this many total attempts
-# the interval also acts as a safeguard: retries stop if the next delay >= interval
+#
+# Maximum number of retry attempts per protocol, per interval.
+# Default: 5
 # max_attempts = 5
+#
+# Note: Retries also stop early if the next delay would exceed the update interval.
 
-# List of records to update
+# List of DNS records to keep updated.
 [[records]]
-# full domain name, e.g. abc.example.com
+# The full domain name to update (e.g. abc.example.com)
 name = "abc.example.com"
-# zone name in CloudFlare, e.g. example.com
+# The zone name registered in Cloudflare (e.g. example.com)
 zone = "example.com"
-# update A record
+# Update the IPv4 (A) record
 v4 = true
-# update AAAA record
+# Update the IPv6 (AAAA) record
 v6 = true
 
 [[records]]
