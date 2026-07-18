@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Per-record lookup overrides: individual records can override the global lookup configuration
+  by specifying a custom lookup provider configuration under `v4` or `v6`.
+
+  ```toml
+  [[records]]
+  name = "internal.example.com"
+  zone = "example.com"
+  v4 = { lookup = { provider = "interface", interface = "eth0" } }
+  ```
+
+- IP matchers for interface lookup: specify prefix (e.g. `2001:db8::/64`) and/or suffix (e.g. `::20/-64`)
+  matching rules to filter candidate IP addresses when multiple addresses are assigned to the network interface.
+
+  ```toml
+  [[records]]
+  name = "suffix-filtered.example.com"
+  zone = "example.com"
+  v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["::20/-64"] } } }
+  ```
+
 ## [0.5.0] - 2026-04-01
 
 ### Added
