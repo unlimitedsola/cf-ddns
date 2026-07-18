@@ -40,10 +40,7 @@ impl LookupSpec for ICanHazIp {
 }
 
 #[cfg(test)]
-#[expect(
-    clippy::print_stdout,
-    reason = "print_stdout allowed in tests"
-)]
+#[expect(clippy::print_stdout, reason = "print_stdout allowed in tests")]
 mod tests {
     use crate::lookup::LookupSpec;
     use crate::lookup::icanhazip::ICanHazIp;

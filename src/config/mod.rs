@@ -11,6 +11,8 @@ use crate::lookup::{ExecLookup, ICanHazIp, InterfaceLookup, Provider};
 
 mod de;
 
+pub use crate::util::matcher::{Ipv4Matcher, Ipv6Matcher};
+
 /// Parsed configuration.
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -82,6 +84,14 @@ impl FromStr for LookupConfig {
     }
 }
 
+#[derive(Deserialize, Debug, Default, Clone, Eq, PartialEq, Hash)]
+pub struct MatcherConfig {
+    #[serde(default)]
+    pub v4: Vec<Ipv4Matcher>,
+    #[serde(default)]
+    pub v6: Vec<Ipv6Matcher>,
+}
+
 /// Lookup provider for a single protocol.
 ///
 /// Accepts either a provider name string (e.g. `"icanhazip"`) or a provider
@@ -94,7 +104,11 @@ pub enum ProviderConfig {
     /// Run a shell command and parse its stdout as an IP address.
     Exec { cmd: String },
     /// Read the address assigned to a specific network interface.
-    Interface { interface: String },
+    Interface {
+        interface: String,
+        #[serde(default)]
+        matchers: MatcherConfig,
+    },
 }
 
 impl FromStr for ProviderConfig {
@@ -123,9 +137,13 @@ impl ProviderConfig {
         match self {
             ProviderConfig::ICanHazIp => Ok(Provider::ICanHazIp(ICanHazIp::new()?)),
             ProviderConfig::Exec { cmd } => Ok(Provider::Exec(ExecLookup::new(cmd.clone()))),
-            ProviderConfig::Interface { interface } => Ok(Provider::Interface(
-                InterfaceLookup::new(interface.clone())?,
-            )),
+            ProviderConfig::Interface {
+                interface,
+                matchers,
+            } => Ok(Provider::Interface(InterfaceLookup::new(
+                interface.clone(),
+                matchers.clone(),
+            )?)),
         }
     }
 }
@@ -178,6 +196,7 @@ pub struct ZoneRecord {
     /// Per-record lookup provider override. `None` means use the global provider.
     pub lookup: Option<ProviderConfig>,
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -309,6 +328,7 @@ mod tests {
                 v4: ProviderConfig::ICanHazIp,
                 v6: ProviderConfig::Interface {
                     interface: "eth0".to_owned(),
+                    matchers: MatcherConfig::default(),
                 },
             }
         );
@@ -468,7 +488,8 @@ mod tests {
         assert_eq!(
             cfg.records.v6[0].lookup,
             Some(ProviderConfig::Interface {
-                interface: "eth0".to_owned()
+                interface: "eth0".to_owned(),
+                matchers: MatcherConfig::default(),
             })
         );
         Ok(())
@@ -513,7 +534,122 @@ mod tests {
         assert_eq!(
             cfg.records.v6[0].lookup,
             Some(ProviderConfig::Interface {
-                interface: "eth0".to_owned()
+                interface: "eth0".to_owned(),
+                matchers: MatcherConfig::default(),
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_v6_filter_suffix() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["::20/-64"] } } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v6.len(), 1);
+        assert_eq!(
+            cfg.records.v6[0].lookup,
+            Some(ProviderConfig::Interface {
+                interface: "eth0".to_owned(),
+                matchers: MatcherConfig {
+                    v4: Vec::new(),
+                    v6: vec!["::20/-64".parse()?],
+                },
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_v6_filter_prefix() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["2001:db8::/64"] } } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v6.len(), 1);
+        assert_eq!(
+            cfg.records.v6[0].lookup,
+            Some(ProviderConfig::Interface {
+                interface: "eth0".to_owned(),
+                matchers: MatcherConfig {
+                    v4: Vec::new(),
+                    v6: vec!["2001:db8::/64".parse()?],
+                },
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_v6_both_filters() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["2001:db8::/64", "::20/-64"] } } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v6.len(), 1);
+        assert_eq!(
+            cfg.records.v6[0].lookup,
+            Some(ProviderConfig::Interface {
+                interface: "eth0".to_owned(),
+                matchers: MatcherConfig {
+                    v4: Vec::new(),
+                    v6: vec!["2001:db8::/64".parse()?, "::20/-64".parse()?,],
+                },
+            })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn record_per_record_v6_invalid_matcher_errors() {
+        let result = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["invalid-filter"] } } }
+            "#,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn record_per_record_v4_filter_suffix() -> Result<()> {
+        let cfg = Config::from_toml(
+            r#"
+                token = "test"
+                [[records]]
+                name = "abc.example.com"
+                zone = "example.com"
+                v4 = { lookup = { provider = "interface", interface = "eth0", matchers = { v4 = ["0.0.0.20/-24"] } } }
+            "#,
+        )?;
+        assert_eq!(cfg.records.v4.len(), 1);
+        assert_eq!(
+            cfg.records.v4[0].lookup,
+            Some(ProviderConfig::Interface {
+                interface: "eth0".to_owned(),
+                matchers: MatcherConfig {
+                    v4: vec!["0.0.0.20/-24".parse()?],
+                    v6: Vec::new(),
+                },
             })
         );
         Ok(())

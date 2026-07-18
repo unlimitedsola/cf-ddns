@@ -82,3 +82,26 @@ v6 = true
 # v6 = { lookup = { provider = "interface", interface = "eth0" } }
 # v4 = { lookup = { provider = "exec", cmd = "curl -s ipv4.icanhazip.com" } }
 # v4 = { lookup = "icanhazip" }
+
+# For interface lookups, you can specify a list of matchers (prefix and/or suffix rules)
+# to filter which address to select when multiple candidate addresses exist.
+# Prefix matchers have positive bit counts, and suffix matchers have negative bit counts.
+# [[records]]
+# name = "suffix-filtered.example.com"
+# zone = "example.com"
+# v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["::20/-64"] } } }  # Matches suffix
+#
+# [[records]]
+# name = "prefix-filtered.example.com"
+# zone = "example.com"
+# v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["2001:db8::/64"] } } }  # Matches prefix
+#
+# [[records]]
+# name = "both-filtered.example.com"
+# zone = "example.com"
+# v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["2001:db8::/64", "::20/-64"] } } }  # Matches prefix and suffix
+
+
+
+
+

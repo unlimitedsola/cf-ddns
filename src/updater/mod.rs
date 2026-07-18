@@ -14,6 +14,7 @@ use crate::AppContext;
 use crate::cloudflare::CloudFlare;
 use crate::cloudflare::record::DnsRecord;
 use crate::config::{LookupConfig, ProviderConfig, Records, RetryConfig, ZoneRecord};
+
 use crate::lookup::{LookupSpec, Provider};
 use crate::updater::id_cache::IdCache;
 use crate::updater::lookup_cache::{LookupCache, UpdateResult};
@@ -458,6 +459,7 @@ mod tests {
         // The failed custom provider should not be present.
         let custom_cfg = ProviderConfig::Interface {
             interface: String::new(),
+            matchers: crate::config::MatcherConfig::default(),
         };
         assert!(!updater.providers.contains_key(&custom_cfg));
 

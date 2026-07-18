@@ -5,6 +5,8 @@ use crate::getifaddrs::{AddressFlags, InterfaceFlags, getifaddrs};
 use crate::util::ip_ext::{is_global_ipv4, is_global_ipv6};
 use anyhow::{Context, Result, bail, ensure};
 
+use crate::config::MatcherConfig;
+
 use crate::lookup::LookupSpec;
 
 #[derive(Clone, Copy)]
@@ -24,23 +26,27 @@ impl fmt::Display for IpFamily {
 
 pub struct InterfaceLookup {
     interface: String,
+    matchers: MatcherConfig,
 }
 
 impl InterfaceLookup {
-    pub fn new(interface: String) -> Result<Self> {
+    pub fn new(interface: String, matchers: MatcherConfig) -> Result<Self> {
         let interface = interface.trim().to_owned();
         ensure!(
             !interface.is_empty(),
             "interface provider requires a non-empty `interface` name"
         );
-        Ok(Self { interface })
+        Ok(Self {
+            interface,
+            matchers,
+        })
     }
 
     fn lookup_ip<T>(
         &self,
         family: IpFamily,
         extract: impl Fn(IpAddr) -> Option<T>,
-        is_public: impl Fn(T) -> bool,
+        filter: impl Fn(T) -> bool,
     ) -> Result<T>
     where
         T: Copy + fmt::Display + Eq,
@@ -78,7 +84,7 @@ impl InterfaceLookup {
 
         ensure!(found_interface, "interface `{}` not found", self.interface);
 
-        if let Some(addr) = candidates.iter().copied().find(|a| is_public(*a)) {
+        if let Some(addr) = candidates.iter().copied().find(|a| filter(*a)) {
             return Ok(addr);
         }
 
@@ -96,7 +102,7 @@ impl InterfaceLookup {
             .collect::<Vec<_>>()
             .join(", ");
         bail!(
-            "interface `{}` has no public {} address (found: {found})",
+            "interface `{}` has no {} address matching criteria (found: {found})",
             self.interface,
             family
         );
@@ -111,7 +117,12 @@ impl LookupSpec for InterfaceLookup {
                 IpAddr::V4(addr) => Some(addr),
                 IpAddr::V6(_) => None,
             },
-            is_public_ipv4,
+            |addr| {
+                if !is_public_ipv4(addr) {
+                    return false;
+                }
+                self.matchers.v4.iter().all(|m| m.matches(addr))
+            },
         )
     }
 
@@ -122,7 +133,12 @@ impl LookupSpec for InterfaceLookup {
                 IpAddr::V4(_) => None,
                 IpAddr::V6(addr) => Some(addr),
             },
-            is_public_ipv6,
+            |addr| {
+                if !is_public_ipv6(addr) {
+                    return false;
+                }
+                self.matchers.v6.iter().all(|m| m.matches(&addr))
+            },
         )
     }
 }
@@ -141,7 +157,7 @@ mod tests {
 
     #[test]
     fn empty_interface_name_errors() {
-        assert!(InterfaceLookup::new("   ".to_owned()).is_err());
+        assert!(InterfaceLookup::new("   ".to_owned(), MatcherConfig::default()).is_err());
     }
 
     // --- is_public_ipv4 ---
