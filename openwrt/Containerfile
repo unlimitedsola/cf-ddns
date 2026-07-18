@@ -1,0 +1,40 @@
+# Global build arguments for target configuration
+ARG TARGET=x86-64
+ARG TAG=openwrt-25.12
+
+# Stage 1: Build the OpenWrt APK
+FROM docker.io/openwrt/sdk:${TARGET}-${TAG} AS builder
+
+# Initialize OpenWrt SDK (cached)
+RUN ./setup.sh
+
+# Initialize feeds and configuration, and pre-compile the rust host compiler (cached)
+RUN --mount=type=cache,target=/builder/dl,uid=1000,gid=1000 \
+    ./scripts/feeds update packages && \
+    ./scripts/feeds install rust && \
+    make defconfig && \
+    make package/rust/host/compile V=s -j$(nproc)
+
+# Copy the OpenWrt Makefile and service configuration files directly into the package directory
+COPY --chown=buildbot:buildbot openwrt/Makefile /builder/package/cf-ddns/Makefile
+COPY --chown=buildbot:buildbot openwrt/files /builder/package/cf-ddns/files/
+
+# Enable the package and source tree override in configuration, and resolve dependencies
+RUN echo "CONFIG_PACKAGE_cf-ddns=y" >> .config && \
+    echo "CONFIG_SRC_TREE_OVERRIDE=y" >> .config && \
+    make defconfig
+
+# Copy the local .git directory directly into the package's git-src path to enable source override
+COPY --chown=buildbot:buildbot .git /builder/package/cf-ddns/git-src
+
+# Compile the package utilizing cache mounts and local source override
+RUN --mount=type=cache,target=/builder/staging_dir/host/.cargo/registry,uid=1000,gid=1000 \
+    --mount=type=cache,target=/builder/staging_dir/host/.cargo/git,uid=1000,gid=1000 \
+    make package/cf-ddns/compile V=s -j$(nproc)
+
+# Copy the generated APK packages into a flat dist directory for export
+RUN mkdir -p /builder/dist && find bin/packages/ -name "cf-ddns*.apk" -exec cp {} /builder/dist/ \;
+
+# Stage 2: Export stage to retrieve the built APK file
+FROM scratch AS exporter
+COPY --from=builder /builder/dist/ /
