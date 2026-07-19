@@ -65,15 +65,6 @@ define Package/cf-ddns/conffiles
 /etc/cf-ddns/config.toml
 endef
 
-# Define custom post-install logic:
-# By default, OpenWrt automatically enables all init scripts installed to /etc/init.d/ upon package installation.
-# By defining a custom 'postinst' script that does nothing but exit 0, we override the default behavior,
-# ensuring the service is installed in a disabled state and letting the user manually decide when to start it.
-define Package/cf-ddns/postinst
-#!/bin/sh
-exit 0
-endef
-
 # Define installation commands:
 # This step maps files from the build staging directory to the layout of the target filesystem on the router.
 # - $(1) represents the target root filesystem directory (similar to / or staging directory).
