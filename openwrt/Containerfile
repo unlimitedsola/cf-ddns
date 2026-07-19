@@ -8,7 +8,13 @@ FROM docker.io/openwrt/sdk:${TARGET}-${TAG} AS builder
 # Initialize OpenWrt SDK (cached)
 RUN ./setup.sh
 
-# Initialize feeds and configuration, and pre-compile the rust host compiler (cached)
+# Initialize feeds and configuration, and pre-compile the rust host compiler.
+# We run `make package/rust/host/compile` in this early cached layer to prevent
+# recompiling the entire Rust host compiler and LLVM on subsequent codebase changes.
+#
+# NOTE: The cache mount specifies `uid=1000,gid=1000` because the OpenWrt SDK
+# runs under the unprivileged `buildbot` user. Default mounts belong to root (0:0),
+# which would cause permission denied errors during package downloading and compilation.
 RUN --mount=type=cache,target=/builder/dl,uid=1000,gid=1000 \
     ./scripts/feeds update packages && \
     ./scripts/feeds install rust && \
@@ -19,15 +25,21 @@ RUN --mount=type=cache,target=/builder/dl,uid=1000,gid=1000 \
 COPY --chown=buildbot:buildbot openwrt/Makefile /builder/package/cf-ddns/Makefile
 COPY --chown=buildbot:buildbot openwrt/files /builder/package/cf-ddns/files/
 
-# Enable the package and source tree override in configuration, and resolve dependencies
+# Enable the package and source tree override in configuration, and resolve dependencies.
+# CONFIG_SRC_TREE_OVERRIDE tells the build system to ignore downstream downloads
+# and compile directly from a local directory pointed to by `git-src`.
 RUN echo "CONFIG_PACKAGE_cf-ddns=y" >> .config && \
     echo "CONFIG_SRC_TREE_OVERRIDE=y" >> .config && \
     make defconfig
 
-# Copy the local .git directory directly into the package's git-src path to enable source override
+# Copy the local .git directory directly into the package's git-src path.
+# Because the buildroot's source override system uses `git archive HEAD` to package
+# files, copy the .git database directly into `git-src`.
+# NOTE: Only committed files are compiled; uncommitted local changes are ignored.
 COPY --chown=buildbot:buildbot .git /builder/package/cf-ddns/git-src
 
-# Compile the package utilizing cache mounts and local source override
+# Compile the package utilizing cargo registry cache mounts and local source override.
+# Cache mounts persist Cargo crates index/registry state across image rebuilds.
 RUN --mount=type=cache,target=/builder/staging_dir/host/.cargo/registry,uid=1000,gid=1000 \
     --mount=type=cache,target=/builder/staging_dir/host/.cargo/git,uid=1000,gid=1000 \
     make package/cf-ddns/compile V=s -j$(nproc)

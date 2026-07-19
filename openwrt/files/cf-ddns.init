@@ -8,6 +8,11 @@ start_service() {
     [ -d "/etc/cf-ddns" ] || mkdir -p /etc/cf-ddns
 
     procd_open_instance
+    # We specify custom paths for config and id-cache:
+    # - config: read-only settings file path
+    # - id-cache: we explicitly locate the cache database in `/var/run/` (tmpfs ramdisk)
+    #   to safely isolate write operations from physical persistent flash memory,
+    #   protecting the device from repetitive write wear cycles.
     procd_set_param command /usr/bin/cf-ddns --config /etc/cf-ddns/config.toml --id-cache /var/run/cf-ddns.json service run
     procd_set_param respawn 3600 5 0
     procd_set_param stdout 1
