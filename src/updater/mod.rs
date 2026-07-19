@@ -69,9 +69,11 @@ impl AppContext {
             }
         }
         let cf = CloudFlare::new(&self.config.token)?;
-        let id_cache = RefCell::new(IdCache::load().unwrap_or_else(|e| {
+        let id_cache = RefCell::new(IdCache::load(&self.id_cache_path).unwrap_or_else(|e| {
             warn!("Failed to load cache: {e}");
-            IdCache::default()
+            let mut cache = IdCache::default();
+            cache.path.clone_from(&self.id_cache_path);
+            cache
         }));
         let lookup_cache = RefCell::new(LookupCache::default());
         Ok(Updater {
@@ -445,8 +447,13 @@ mod tests {
         )?;
 
         let ctx = AppContext {
-            cli: crate::cli::Cli { command: None },
+            cli: crate::cli::Cli {
+                config: None,
+                id_cache: None,
+                command: None,
+            },
             config,
+            id_cache_path: std::path::PathBuf::from("id_cache.json"),
         };
 
         // This should not crash, it should log a warning and return the Updater successfully,

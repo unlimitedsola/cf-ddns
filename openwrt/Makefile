@@ -40,7 +40,6 @@ define Package/cf-ddns/install
 
 	$(INSTALL_DIR) $(1)/etc/cf-ddns
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/config.example.toml $(1)/etc/cf-ddns/config.toml
-	ln -sf /etc/cf-ddns/config.toml $(1)/usr/libexec/cf-ddns/config.toml
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/cf-ddns.init $(1)/etc/init.d/cf-ddns

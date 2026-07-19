@@ -3,17 +3,17 @@ use std::fs::File;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::OnceLock;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::cloudflare::record::DnsContent::{A, AAAA};
 use crate::cloudflare::record::DnsRecord;
-use crate::current_exe;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct IdCache {
+    #[serde(skip)]
+    pub(crate) path: PathBuf,
     /// Zone name to Zone Id
     zones: HashMap<String, Rc<str>>,
     /// Record name to Record Ids (v4, v6)
@@ -43,19 +43,16 @@ impl RecordIdCache {
 }
 
 impl IdCache {
-    fn cache_path() -> &'static Path {
-        static PATH: OnceLock<PathBuf> = OnceLock::new();
-        PATH.get_or_init(|| current_exe().with_file_name("id_cache.json"))
-    }
-
-    pub fn load() -> Result<IdCache> {
-        let file = File::open(Self::cache_path())?;
-        serde_json::from_reader(file).context("failed to load cache")
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<IdCache> {
+        let file = File::open(path.as_ref())?;
+        let mut cache: IdCache = serde_json::from_reader(file).context("failed to load cache")?;
+        cache.path = path.as_ref().to_path_buf();
+        Ok(cache)
     }
 
     // to avoid file contention, we require exclusive access to the cache to save it
-    pub fn save(&mut self) -> Result<()> {
-        let file = File::create(Self::cache_path())?;
+    pub fn save(&self) -> Result<()> {
+        let file = File::create(&self.path)?;
         serde_json::to_writer(file, self).context("failed to write cache")
     }
 }
@@ -80,5 +77,32 @@ impl IdCache {
             .entry(name.to_owned())
             .or_default()
             .update(record);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_custom_cache_path_load_save() -> Result<()> {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("cf-ddns-test-cache.json");
+
+        let mut cache = IdCache {
+            path: temp_file.clone(),
+            ..Default::default()
+        };
+        cache.save_zone("example.com".to_owned(), "zone_id_123".to_owned());
+        cache.save()?;
+
+        assert!(temp_file.exists());
+
+        let loaded = IdCache::load(&temp_file)?;
+        assert_eq!(loaded.path, temp_file);
+        assert_eq!(loaded.get_zone("example.com").as_deref(), Some("zone_id_123"));
+
+        let _ = std::fs::remove_file(temp_file);
+        Ok(())
     }
 }

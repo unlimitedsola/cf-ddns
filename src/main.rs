@@ -20,12 +20,20 @@ mod util;
 struct AppContext {
     cli: Cli,
     config: Config,
+    id_cache_path: PathBuf,
 }
 
 impl AppContext {
     fn new(cli: Cli) -> Result<Self> {
-        let config = Config::load()?;
-        Ok(AppContext { cli, config })
+        let config = Config::load(cli.config.as_deref())?;
+        let id_cache_path = cli.id_cache.clone().unwrap_or_else(|| {
+            current_exe().with_file_name("id_cache.json")
+        });
+        Ok(AppContext {
+            cli,
+            config,
+            id_cache_path,
+        })
     }
 }
 

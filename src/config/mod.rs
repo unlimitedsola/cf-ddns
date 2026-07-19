@@ -32,11 +32,15 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load() -> Result<Self> {
-        Self::from_path(Self::config_path())
+    pub fn load(custom_path: Option<&Path>) -> Result<Self> {
+        let path = match custom_path {
+            Some(p) => p.to_path_buf(),
+            None => Self::default_config_path(),
+        };
+        Self::from_path(path)
     }
 
-    fn config_path() -> PathBuf {
+    pub fn default_config_path() -> PathBuf {
         current_exe().with_file_name("config.toml")
     }
 
@@ -230,6 +234,19 @@ mod tests {
         assert_eq!(cfg.retry.base_delay, Duration::from_secs(10));
         assert!((cfg.retry.backoff_multiplier - 3.0).abs() < f64::EPSILON);
         assert_eq!(cfg.retry.max_attempts, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn load_custom_config_path() -> Result<()> {
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join("cf-ddns-test-config.toml");
+        std::fs::write(&temp_file, r#"token = "custom_path_test_token""#)?;
+
+        let cfg = Config::load(Some(&temp_file))?;
+        assert_eq!(cfg.token, "custom_path_test_token");
+
+        let _ = std::fs::remove_file(temp_file);
         Ok(())
     }
 
