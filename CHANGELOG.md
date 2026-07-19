@@ -29,6 +29,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v6 = { lookup = { provider = "interface", interface = "eth0", matchers = { v6 = ["::20/-64"] } } }
   ```
 
+- Custom configuration and cache locations: specify custom paths for the configuration TOML file
+  and the zone/record ID cache JSON file using command-line arguments or environment variables.
+
+  ```bash
+  cf-ddns --config /path/to/config.toml --id-cache /path/to/id_cache.json
+  # Or via environment variables
+  CF_DDNS_CONFIG=/path/to/config.toml CF_DDNS_ID_CACHE=/path/to/id_cache.json cf-ddns
+  ```
+
+- OpenWrt system package: build and install the daemon on OpenWrt 25.12+ (Alpine `.apk` format)
+  with a standard `procd` init script. Runtime cache writes are redirected to memory-backed tmpfs (`/var/run/`)
+  to protect physical flash.
+
 ## [0.5.0] - 2026-04-01
 
 ### Added
