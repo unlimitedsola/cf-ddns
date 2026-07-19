@@ -67,8 +67,14 @@ mod tests {
 
         // Parse from empty args to ensure it falls back to env variables
         let cli = Cli::try_parse_from(["cf-ddns"])?;
-        assert_eq!(cli.config.context("config is missing")?.to_str(), Some("/tmp/config_env.toml"));
-        assert_eq!(cli.id_cache.context("id_cache is missing")?.to_str(), Some("/tmp/cache_env.json"));
+        assert_eq!(
+            cli.config.context("config is missing")?.to_str(),
+            Some("/tmp/config_env.toml")
+        );
+        assert_eq!(
+            cli.id_cache.context("id_cache is missing")?.to_str(),
+            Some("/tmp/cache_env.json")
+        );
 
         unsafe {
             std::env::remove_var("CF_DDNS_CONFIG");
@@ -85,7 +91,10 @@ mod tests {
 
         // Command line arg should override env variable
         let cli = Cli::try_parse_from(["cf-ddns", "-c", "/tmp/override.toml"])?;
-        assert_eq!(cli.config.context("config is missing")?.to_str(), Some("/tmp/override.toml"));
+        assert_eq!(
+            cli.config.context("config is missing")?.to_str(),
+            Some("/tmp/override.toml")
+        );
 
         unsafe {
             std::env::remove_var("CF_DDNS_CONFIG");

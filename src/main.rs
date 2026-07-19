@@ -26,9 +26,10 @@ struct AppContext {
 impl AppContext {
     fn new(cli: Cli) -> Result<Self> {
         let config = Config::load(cli.config.as_deref())?;
-        let id_cache_path = cli.id_cache.clone().unwrap_or_else(|| {
-            current_exe().with_file_name("id_cache.json")
-        });
+        let id_cache_path = cli
+            .id_cache
+            .clone()
+            .unwrap_or_else(|| current_exe().with_file_name("id_cache.json"));
         Ok(AppContext {
             cli,
             config,
@@ -64,6 +65,7 @@ fn current_exe() -> &'static Path {
     EXE.get_or_init(|| std::env::current_exe().expect("unable to get current executable path"))
 }
 
+#[cfg(feature = "service")]
 fn current_exe_str() -> &'static str {
     static STR: OnceLock<&'static str> = OnceLock::new();
     STR.get_or_init(|| {

@@ -100,7 +100,10 @@ mod tests {
 
         let loaded = IdCache::load(&temp_file)?;
         assert_eq!(loaded.path, temp_file);
-        assert_eq!(loaded.get_zone("example.com").as_deref(), Some("zone_id_123"));
+        assert_eq!(
+            loaded.get_zone("example.com").as_deref(),
+            Some("zone_id_123")
+        );
 
         let _ = std::fs::remove_file(temp_file);
         Ok(())
