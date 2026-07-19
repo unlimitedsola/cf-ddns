@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 # - PKG_VERSION: The version of the package matching the upstream release.
 # - PKG_RELEASE: The build release number, incremented for packaging-only changes.
 PKG_NAME:=cf-ddns
-PKG_VERSION:=0.5.0
+PKG_VERSION:=0.6.0
 PKG_RELEASE:=1
 
 # Configure source downloading settings:
