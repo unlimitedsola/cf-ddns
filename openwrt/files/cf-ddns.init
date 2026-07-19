@@ -31,6 +31,7 @@ start_service() {
     #   to completely isolate write cycles from physical flash storage, preventing premature flash wear.
     # - service run: Subcommand that tells cf-ddns to launch in daemon mode.
     procd_set_param command /usr/bin/cf-ddns --config /etc/cf-ddns/config.toml --id-cache /var/run/cf-ddns.json service run
+    procd_set_param env NO_COLOR=1
 
     # file parameter: Registers the config file path to be monitored by procd.
     # When a user runs `/etc/init.d/cf-ddns reload`, procd compares the hash/checksum of this file.
