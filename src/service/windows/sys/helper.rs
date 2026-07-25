@@ -17,10 +17,10 @@ use windows::core::PWSTR;
 /// The `argv` pointer must be a valid pointer to a size `argc` array of pointers to
 /// null-terminated wide strings.
 /// The pointers in the array must hold the safety guarantees of [`PWSTR::to_string`].
-pub unsafe fn parse_service_entry_arguments(argc: u32, argv: *mut PWSTR) -> Vec<String> {
+pub unsafe fn parse_service_entry_arguments(argc: u32, argv_ptr: *mut PWSTR) -> Vec<String> {
     (0..argc)
         .map(|i| unsafe {
-            (*argv.offset(i as isize))
+            (*argv_ptr.offset(isize::try_from(i).expect("index fits isize")))
                 .to_string()
                 .expect("string should be valid")
         })
@@ -49,8 +49,8 @@ fn current_process_info() -> Result<PROCESS_BASIC_INFORMATION> {
         NtQueryInformationProcess(
             GetCurrentProcess(),
             ProcessBasicInformation,
-            &mut res as *mut _ as *mut c_void,
-            size_of::<PROCESS_BASIC_INFORMATION>() as u32,
+            std::ptr::addr_of_mut!(res).cast::<c_void>(),
+            u32::try_from(size_of::<PROCESS_BASIC_INFORMATION>()).expect("struct size fits u32"),
             null_mut(),
         )
     }
@@ -68,7 +68,7 @@ fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
     // Generally, you need at least 512 KiB to fit all process info.
     let mut buf_size: usize = 512 * 1024;
     loop {
-        let mut buf = AlignedBuf::new::<SYSTEM_PROCESS_INFORMATION>(buf_size)?;
+        let buf = AlignedBuf::new::<SYSTEM_PROCESS_INFORMATION>(buf_size)?;
 
         // If query failed with insufficient buffer size, the expected size
         // will be written into `needed`.
@@ -76,13 +76,13 @@ fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
         let res = unsafe {
             NtQuerySystemInformation(
                 SystemProcessInformation,
-                buf.as_mut_ptr() as *mut c_void,
-                buf_size as u32,
-                &mut needed,
+                buf.as_mut_ptr().cast::<c_void>(),
+                u32::try_from(buf_size)?,
+                &raw mut needed,
             )
         };
         match res.ok() {
-            Ok(_) => {
+            Ok(()) => {
                 return unsafe { parse_and_find_system_process(pid, buf.as_mut_ptr()) };
             }
             Err(e) => {
@@ -93,7 +93,7 @@ fn find_system_process(pid: usize) -> Result<SystemProcessInfo> {
                     } else {
                         // Tbh this should not happen, just double the size and try again I guess?
                         buf_size *= 2;
-                    };
+                    }
                 } else {
                     bail!(e);
                 }
@@ -108,8 +108,7 @@ unsafe fn parse_and_find_system_process(pid: usize, buf: *const u8) -> Result<Sy
         // SAFETY: `buf + offset` points within the buffer written by NtQuerySystemInformation.
         // We use read_unaligned because MSDN does not document that NextEntryOffset is guaranteed
         // to produce a pointer aligned for SYSTEM_PROCESS_INFORMATION.
-        let info =
-            unsafe { (buf.add(offset) as *const SYSTEM_PROCESS_INFORMATION).read_unaligned() };
+        let info = unsafe { buf.add(offset).cast::<SYSTEM_PROCESS_INFORMATION>().read_unaligned() };
         if info.UniqueProcessId.0 as usize == pid {
             return Ok(SystemProcessInfo {
                 session_id: info.SessionId,
@@ -118,7 +117,7 @@ unsafe fn parse_and_find_system_process(pid: usize, buf: *const u8) -> Result<Sy
         }
         if info.NextEntryOffset == 0 {
             // Reached the end of the list
-            bail!("Could not find process with pid {}", pid);
+            bail!("Could not find process with pid {pid}");
         }
         offset += info.NextEntryOffset as usize;
     }
@@ -139,12 +138,12 @@ impl AlignedBuf {
         let layout = std::alloc::Layout::from_size_align(bytes, align_of::<T>())?;
         let ptr = unsafe { std::alloc::alloc_zeroed(layout) };
         if ptr.is_null() {
-            bail!("Failed to allocate {} bytes for process info buffer", bytes);
+            bail!("Failed to allocate {bytes} bytes for process info buffer");
         }
         Ok(Self { ptr, layout })
     }
 
-    fn as_mut_ptr(&mut self) -> *mut u8 {
+    const fn as_mut_ptr(&self) -> *mut u8 {
         self.ptr
     }
 }
@@ -166,7 +165,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "manual memory leak test"]
     fn mem_leak_test() -> Result<()> {
         // maybe? dunno how to test memory leaks :P
         for _ in 0..1_000_000 {

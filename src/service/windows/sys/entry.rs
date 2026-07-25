@@ -44,9 +44,9 @@ pub fn run(name: &str, entry: ServiceMain) -> Result<()> {
     start(name, ffi_service_entry)
 }
 
-pub extern "system" fn ffi_service_entry(argc: u32, argv: *mut PWSTR) {
-    let args = unsafe { parse_service_entry_arguments(argc, argv) };
-    if let Err(e) = run_service(args) {
+pub extern "system" fn ffi_service_entry(argc: u32, argv_ptr: *mut PWSTR) {
+    let parsed_args = unsafe { parse_service_entry_arguments(argc, argv_ptr) };
+    if let Err(e) = run_service(parsed_args) {
         error!("Service failed to run: {:?}", e);
     }
 }
@@ -78,7 +78,7 @@ fn run_service(args: Vec<String>) -> Result<()> {
         .set_status(SERVICE_STATUS {
             dwServiceType: SERVICE_WIN32_OWN_PROCESS,
             dwCurrentState: Services::SERVICE_STOPPED,
-            dwWin32ExitCode: result.as_ref().map_or(1, |_| 0),
+            dwWin32ExitCode: result.as_ref().map_or(1, |()| 0),
             ..SERVICE_STATUS::default()
         })
         .context("updating service status to STOPPED")?;

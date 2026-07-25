@@ -85,7 +85,7 @@ impl AdapterAddressBuf {
             ))
         } else {
             Ok(Self {
-                ptr: ptr as *mut IP_ADAPTER_ADDRESSES_LH,
+                ptr: ptr.cast::<IP_ADAPTER_ADDRESSES_LH>(),
                 size: bytes,
             })
         }
@@ -99,26 +99,27 @@ impl Drop for AdapterAddressBuf {
             std::mem::align_of::<IP_ADAPTER_ADDRESSES_LH>(),
         )
         .expect("align_of is a power of two and size matches");
-        unsafe { std::alloc::dealloc(self.ptr as *mut u8, layout) };
+        unsafe { std::alloc::dealloc(self.ptr.cast::<u8>(), layout) };
     }
 }
 
 impl AdaptersAddresses {
     fn try_new() -> io::Result<Self> {
+        const MAX_MEMORY_SIZE: u32 = 128 * 1024;
         let mut num_interfaces = 0u32;
         unsafe {
-            if WIN32_ERROR(GetNumberOfInterfaces(&mut num_interfaces)) != NO_ERROR {
-                num_interfaces = 16;
-            } else {
+            if WIN32_ERROR(GetNumberOfInterfaces(&raw mut num_interfaces)) == NO_ERROR {
                 num_interfaces = num_interfaces.max(8);
+            } else {
+                num_interfaces = 16;
             }
         }
-        let mut out_buf_len =
-            num_interfaces * std::mem::size_of::<IP_ADAPTER_ADDRESSES_LH>() as u32;
+        let struct_size = u32::try_from(std::mem::size_of::<IP_ADAPTER_ADDRESSES_LH>())
+            .expect("struct size fits u32");
+        let mut out_buf_len = num_interfaces * struct_size;
         let mut adapters = Self {
             buf: AdapterAddressBuf::new(out_buf_len as usize)?,
         };
-        const MAX_MEMORY_SIZE: u32 = 128 * 1024;
         loop {
             if out_buf_len > MAX_MEMORY_SIZE {
                 return Err(io::Error::new(
@@ -132,7 +133,7 @@ impl AdaptersAddresses {
                     GET_ADAPTERS_ADDRESSES_FLAGS(0),
                     None,
                     Some(adapters.buf.ptr),
-                    &mut out_buf_len,
+                    &raw mut out_buf_len,
                 )
             }) {
                 NO_ERROR => return Ok(adapters),
@@ -160,31 +161,33 @@ impl AdaptersAddresses {
 
 fn luid_to_name(luid: NET_LUID_LH) -> String {
     let mut if_index: u32 = 0;
-    if unsafe { ConvertInterfaceLuidToIndex(&luid, &mut if_index) } == NO_ERROR {
+    if unsafe { ConvertInterfaceLuidToIndex(&raw const luid, &raw mut if_index) } == NO_ERROR {
         let mut buffer = [0u8; IF_NAMESIZE];
         let ptr = unsafe { if_indextoname(if_index, &mut buffer) };
-        if !ptr.is_null() {
-            if let Ok(name) = unsafe { ptr.to_string() } {
-                return name;
-            }
+        if !ptr.is_null() && let Ok(name) = unsafe { ptr.to_string() } {
+            return name;
         }
     }
     format!("if{:#x}", unsafe { luid.Value })
 }
 
+#[expect(
+    clippy::cast_ptr_alignment,
+    reason = "FFI sockaddr pointers returned from GetAdaptersAddresses are guaranteed to be correctly aligned for SOCKADDR_IN/SOCKADDR_IN6"
+)]
 fn sockaddr_to_ipaddr(sock_addr: *const SOCKADDR) -> io::Result<IpAddr> {
     if sock_addr.is_null() {
         return Err(io::Error::new(io::ErrorKind::InvalidInput, "Null pointer"));
     }
     match unsafe { (*sock_addr).sa_family } {
         AF_INET => {
-            let sa4 = sock_addr as *const SOCKADDR_IN;
+            let sa4 = sock_addr.cast::<SOCKADDR_IN>();
             Ok(IpAddr::V4(
                 unsafe { (*sa4).sin_addr.S_un.S_addr }.to_ne_bytes().into(),
             ))
         }
         AF_INET6 => {
-            let sa6 = sock_addr as *const SOCKADDR_IN6;
+            let sa6 = sock_addr.cast::<SOCKADDR_IN6>();
             Ok(IpAddr::V6(unsafe { (*sa6).sin6_addr.u.Byte }.into()))
         }
         _ => Err(io::Error::new(

@@ -11,7 +11,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(handle: ScHandle) -> Self {
+    pub const fn new(handle: ScHandle) -> Self {
         Service { handle }
     }
 
@@ -37,17 +37,18 @@ impl Service {
     /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-changeserviceconfig2w>
     pub fn update_description(&self, desc: &str) -> Result<()> {
         let w_desc = HSTRING::from(desc);
+        let desc_struct = SERVICE_DESCRIPTIONW {
+            // SAFETY: we rely on that `w_str` will not be dropped before the call.
+            // The following article also demonstrates this call won't take the
+            // ownership of `w_str`:
+            // https://learn.microsoft.com/en-us/windows/win32/services/changing-a-service-configuration
+            lpDescription: PWSTR::from_raw(w_desc.as_ptr().cast_mut()),
+        };
         unsafe {
             Services::ChangeServiceConfig2W(
                 self.handle.raw_handle(),
                 SERVICE_CONFIG_DESCRIPTION,
-                Some(&SERVICE_DESCRIPTIONW {
-                    // SAFETY: we rely on that `w_str` will not be dropped before the call.
-                    // The following article also demonstrates this call won't take the
-                    // ownership of `w_str`:
-                    // https://learn.microsoft.com/en-us/windows/win32/services/changing-a-service-configuration
-                    lpDescription: PWSTR::from_raw(w_desc.as_ptr() as *mut _),
-                } as *const _ as *mut _),
+                Some(std::ptr::from_ref(&desc_struct).cast_mut().cast()),
             )
         }
         .context("Failed to update service description")

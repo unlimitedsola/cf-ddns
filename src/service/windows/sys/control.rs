@@ -16,7 +16,7 @@ pub fn start(name: &str, entry: ServiceMain) -> Result<()> {
         Services::SERVICE_TABLE_ENTRYW {
             // If the service type is SERVICE_WIN32_OWN_PROCESS, this field
             // is ignored, but cannot be NULL.
-            lpServiceName: PWSTR::from_raw(w_name.as_ptr() as *mut _),
+            lpServiceName: PWSTR::from_raw(w_name.as_ptr().cast_mut()),
             lpServiceProc: Some(entry),
         },
         Services::SERVICE_TABLE_ENTRYW::default(),
@@ -24,8 +24,8 @@ pub fn start(name: &str, entry: ServiceMain) -> Result<()> {
     unsafe {
         // SAFETY: `entry_table` will be valid during the call, and the callee
         // won't take the ownership of the `entry_table` as per conventions.
-        Services::StartServiceCtrlDispatcherW(entry_table.as_ptr())?
-    };
+        Services::StartServiceCtrlDispatcherW(entry_table.as_ptr())?;
+    }
     Ok(())
 }
 
@@ -34,12 +34,12 @@ pub fn start(name: &str, entry: ServiceMain) -> Result<()> {
 pub struct ServiceStatusHandle(Services::SERVICE_STATUS_HANDLE);
 
 impl ServiceStatusHandle {
-    pub fn new(handle: Services::SERVICE_STATUS_HANDLE) -> Self {
+    pub const fn new(handle: Services::SERVICE_STATUS_HANDLE) -> Self {
         ServiceStatusHandle(handle)
     }
 
     pub fn set_status(&self, status: SERVICE_STATUS) -> Result<()> {
-        unsafe { Services::SetServiceStatus(self.0, &status)? };
+        unsafe { Services::SetServiceStatus(self.0, &raw const status)? };
         Ok(())
     }
 }

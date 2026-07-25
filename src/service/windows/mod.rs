@@ -24,6 +24,10 @@ pub enum ServiceCommand {
 }
 
 impl AppContext {
+    #[expect(
+        clippy::unused_async,
+        reason = "matching cross-platform async signature required by cli caller"
+    )]
     pub async fn run_service_command(&self, command: &ServiceCommand) -> Result<()> {
         match command {
             ServiceCommand::Install => install()?,
