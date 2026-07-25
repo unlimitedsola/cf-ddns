@@ -19,11 +19,11 @@ pub fn install() -> Result<()> {
     );
 
     fs::write(PLIST_PATH, plist).context("unable to write service file")?;
-    exec(LAUNCHCTL, &["load", "-w", PLIST_PATH])
+    exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH])
 }
 
 pub fn uninstall() -> Result<()> {
-    exec(LAUNCHCTL, &["unload", "-w", PLIST_PATH])?;
+    exec(LAUNCHCTL, &["bootout", "system", PLIST_PATH])?;
     remove_file(PLIST_PATH).context("unable to remove service file")
 }
 
