@@ -101,4 +101,14 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn test_top_level_args_before_subcommand() -> Result<()> {
+        let cli = Cli::try_parse_from(["cf-ddns", "--id-cache", "/tmp/cache.json", "service", "run"])?;
+        assert_eq!(
+            cli.id_cache.context("id_cache is missing")?.to_str(),
+            Some("/tmp/cache.json")
+        );
+        Ok(())
+    }
 }

@@ -5,8 +5,41 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={exec} service run
+ExecStart={exec} --id-cache /var/cache/cf-ddns/id_cache.json service run
 Restart=on-failure
+
+# Privilege minimization & isolation
+
+# Allocate a dynamic, unprivileged system user for runtime execution.
+# (Implies ProtectSystem=strict, PrivateTmp=yes, and NoNewPrivileges=yes)
+DynamicUser=yes
+
+# Automatically provision /var/cache/cf-ddns writable by the dynamic user
+CacheDirectory=cf-ddns
+
+# Block access to /home, /root, and /run/user
+ProtectHome=yes
+
+# Make kernel sysctl variables read-only
+ProtectKernelTunables=yes
+
+# Disallow loading kernel modules
+ProtectKernelModules=yes
+
+# Make cgroups hierarchy read-only
+ProtectControlGroups=yes
+
+# Restrict network socket creation to IPv4, IPv6, Unix, and Netlink sockets
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+
+# Lock execution domain personality
+LockPersonality=yes
+
+# Prevent creation of executable memory mappings (W^X)
+MemoryDenyWriteExecute=yes
+
+# Prevent acquiring real-time scheduling privileges
+RestrictRealtime=yes
 
 [Install]
 WantedBy=multi-user.target
