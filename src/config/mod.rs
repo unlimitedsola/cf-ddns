@@ -31,6 +31,28 @@ pub struct Config {
     pub records: Records,
 }
 
+#[cfg(unix)]
+pub fn is_system_bin_dir(dir: &Path) -> bool {
+    let system_dirs: &[&Path] = &[
+        Path::new("/usr/local/bin"),
+        Path::new("/usr/local/sbin"),
+        Path::new("/usr/bin"),
+        Path::new("/usr/sbin"),
+        Path::new("/bin"),
+        Path::new("/sbin"),
+    ];
+    system_dirs.contains(&dir)
+}
+
+pub fn default_config_path_for_exe(exe: impl AsRef<Path>) -> PathBuf {
+    let exe = exe.as_ref();
+    #[cfg(unix)]
+    if exe.parent().is_some_and(is_system_bin_dir) {
+        return PathBuf::from("/etc/cf-ddns/config.toml");
+    }
+    exe.with_file_name("config.toml")
+}
+
 impl Config {
     pub fn load(custom_path: Option<&Path>) -> Result<Self> {
         let path = match custom_path {
@@ -41,7 +63,7 @@ impl Config {
     }
 
     pub fn default_config_path() -> PathBuf {
-        current_exe().with_file_name("config.toml")
+        default_config_path_for_exe(current_exe())
     }
 
     fn from_path<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -670,5 +692,34 @@ mod tests {
             })
         );
         Ok(())
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn system_bin_dir_detection() {
+        assert!(is_system_bin_dir(Path::new("/usr/bin")));
+        assert!(is_system_bin_dir(Path::new("/usr/local/bin")));
+        assert!(is_system_bin_dir(Path::new("/usr/local/sbin")));
+        assert!(is_system_bin_dir(Path::new("/bin")));
+        assert!(is_system_bin_dir(Path::new("/sbin")));
+
+        assert!(!is_system_bin_dir(Path::new("/opt/cf-ddns/bin")));
+        assert!(!is_system_bin_dir(Path::new("/home/user/cf-ddns")));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn default_config_path_system_dir() {
+        let exe = Path::new("/usr/local/bin/cf-ddns");
+        assert_eq!(
+            default_config_path_for_exe(exe),
+            PathBuf::from("/etc/cf-ddns/config.toml")
+        );
+
+        let custom_exe = Path::new("/opt/cf-ddns/cf-ddns");
+        assert_eq!(
+            default_config_path_for_exe(custom_exe),
+            PathBuf::from("/opt/cf-ddns/config.toml")
+        );
     }
 }

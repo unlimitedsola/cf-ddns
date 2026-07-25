@@ -4,15 +4,12 @@ use std::path::{Path, PathBuf};
 use anyhow::{bail, Context, Result};
 use const_format::concatcp;
 
-use crate::{current_exe, current_exe_str};
+use crate::config::{is_system_bin_dir, Config};
 use crate::service::exec::exec;
 use crate::service::linux::{SERVICE_DESCRIPTION, SERVICE_NAME};
+use crate::{current_exe, current_exe_str};
 
 const UNIT_FILE: &str = concatcp!("/etc/systemd/system/", SERVICE_NAME, ".service");
-
-fn default_config_path() -> PathBuf {
-    current_exe().with_file_name("config.toml")
-}
 
 fn default_id_cache_path() -> PathBuf {
     PathBuf::from("/var/cache/cf-ddns/id_cache.json")
@@ -27,8 +24,19 @@ pub fn install(config: Option<&Path>, id_cache: Option<&Path>) -> Result<()> {
         );
     }
 
-    let config_path = config.map_or_else(default_config_path, Path::to_path_buf);
+    let exe = current_exe();
+    let is_custom_config = config.is_some();
+    let config_path = config.map_or_else(Config::default_config_path, Path::to_path_buf);
     let id_cache_path = id_cache.map_or_else(default_id_cache_path, Path::to_path_buf);
+
+    if !is_custom_config && exe.parent().is_some_and(is_system_bin_dir) {
+        let parent = exe.parent().expect("parent directory exists");
+        tracing::info!(
+            "binary is in system directory '{}'; defaulting config file path to '{}'",
+            parent.display(),
+            config_path.display()
+        );
+    }
 
     let unit_def = gen_unit_def(current_exe_str(), &config_path, &id_cache_path);
     fs::write(UNIT_FILE, unit_def.as_bytes()).with_context(|| {
