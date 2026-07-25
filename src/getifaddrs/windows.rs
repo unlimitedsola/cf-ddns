@@ -164,7 +164,9 @@ fn luid_to_name(luid: NET_LUID_LH) -> String {
     if unsafe { ConvertInterfaceLuidToIndex(&raw const luid, &raw mut if_index) } == NO_ERROR {
         let mut buffer = [0u8; IF_NAMESIZE];
         let ptr = unsafe { if_indextoname(if_index, &mut buffer) };
-        if !ptr.is_null() && let Ok(name) = unsafe { ptr.to_string() } {
+        if !ptr.is_null()
+            && let Ok(name) = unsafe { ptr.to_string() }
+        {
             return name;
         }
     }

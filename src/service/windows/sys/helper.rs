@@ -108,7 +108,11 @@ unsafe fn parse_and_find_system_process(pid: usize, buf: *const u8) -> Result<Sy
         // SAFETY: `buf + offset` points within the buffer written by NtQuerySystemInformation.
         // We use read_unaligned because MSDN does not document that NextEntryOffset is guaranteed
         // to produce a pointer aligned for SYSTEM_PROCESS_INFORMATION.
-        let info = unsafe { buf.add(offset).cast::<SYSTEM_PROCESS_INFORMATION>().read_unaligned() };
+        let info = unsafe {
+            buf.add(offset)
+                .cast::<SYSTEM_PROCESS_INFORMATION>()
+                .read_unaligned()
+        };
         if info.UniqueProcessId.0 as usize == pid {
             return Ok(SystemProcessInfo {
                 session_id: info.SessionId,

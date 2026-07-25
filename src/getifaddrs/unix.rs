@@ -153,7 +153,12 @@ fn read_ipv6_addr_flags(
         }
         // Set the address in the union so the kernel knows which address to query.
         req.ifr_ifru.ifru_addr = *sa_in6;
-        if libc::ioctl(sock, SIOCGIFAFLAG_IN6, std::ptr::addr_of_mut!(req).cast::<libc::c_void>()) < 0 {
+        if libc::ioctl(
+            sock,
+            SIOCGIFAFLAG_IN6,
+            std::ptr::addr_of_mut!(req).cast::<libc::c_void>(),
+        ) < 0
+        {
             return AddressFlags::empty();
         }
         // After the ioctl the kernel has written the per-address flags into ifru_flags6.
