@@ -36,7 +36,7 @@ struct InterfaceIterator {
 impl InterfaceIterator {
     pub fn new() -> io::Result<Self> {
         let mut ifaddrs: *mut libc::ifaddrs = std::ptr::null_mut();
-        if unsafe { libc::getifaddrs(&mut ifaddrs) } != 0 {
+        if unsafe { libc::getifaddrs(&raw mut ifaddrs) } != 0 {
             return Err(io::Error::last_os_error());
         }
 
@@ -67,13 +67,13 @@ impl Iterator for InterfaceIterator {
                 continue;
             };
 
-            let address: IpAddr = match addr.sa_family as i32 {
+            let address: IpAddr = match i32::from(addr.sa_family) {
                 libc::AF_INET => {
-                    let sa_in = addr as *const _ as *const libc::sockaddr_in;
+                    let sa_in = std::ptr::from_ref(addr).cast::<libc::sockaddr_in>();
                     Ipv4Addr::from(unsafe { (*sa_in).sin_addr.s_addr }.to_ne_bytes()).into()
                 }
                 libc::AF_INET6 => {
-                    let sa_in6 = addr as *const _ as *const libc::sockaddr_in6;
+                    let sa_in6 = std::ptr::from_ref(addr).cast::<libc::sockaddr_in6>();
                     Ipv6Addr::from(unsafe { (*sa_in6).sin6_addr.s6_addr }).into()
                 }
                 _ => continue,
@@ -90,14 +90,12 @@ impl Iterator for InterfaceIterator {
 
             let mut addr_flags = AddressFlags::empty();
             #[cfg(target_os = "macos")]
-            if let IpAddr::V6(_) = address {
-                if self.sock6 >= 0 {
-                    addr_flags = addr_flags.with(read_ipv6_addr_flags(
-                        self.sock6,
-                        ifaddr.ifa_name,
-                        addr as *const _ as *const libc::sockaddr_in6,
-                    ));
-                }
+            if address.is_ipv6() && self.sock6 >= 0 {
+                addr_flags = addr_flags.with(read_ipv6_addr_flags(
+                    self.sock6,
+                    ifaddr.ifa_name,
+                    std::ptr::from_ref(addr).cast::<libc::sockaddr_in6>(),
+                ));
             }
 
             let name = unsafe { CStr::from_ptr(ifaddr.ifa_name) }
@@ -151,11 +149,11 @@ fn read_ipv6_addr_flags(
         let name_bytes = CStr::from_ptr(name).to_bytes();
         let copy_len = name_bytes.len().min(req.ifr_name.len() - 1);
         for (dst, &src) in req.ifr_name.iter_mut().zip(&name_bytes[..copy_len]) {
-            *dst = src as libc::c_char;
+            *dst = src.cast_signed();
         }
         // Set the address in the union so the kernel knows which address to query.
         req.ifr_ifru.ifru_addr = *sa_in6;
-        if libc::ioctl(sock, SIOCGIFAFLAG_IN6, &mut req as *mut _) < 0 {
+        if libc::ioctl(sock, SIOCGIFAFLAG_IN6, std::ptr::addr_of_mut!(req).cast::<libc::c_void>()) < 0 {
             return AddressFlags::empty();
         }
         // After the ioctl the kernel has written the per-address flags into ifru_flags6.

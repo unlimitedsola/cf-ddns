@@ -23,6 +23,6 @@ impl AppContext {
             ServiceCommand::Uninstall => uninstall(),
             ServiceCommand::Run => self.run_service(ctrl_c()).await,
         }
-        .with_context(|| format!("unable to run service command: {:?}", command))
+        .with_context(|| format!("unable to run service command: {command:?}"))
     }
 }
