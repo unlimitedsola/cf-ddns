@@ -4,7 +4,7 @@ use clap::Subcommand;
 use tokio::signal::ctrl_c;
 
 use crate::AppContext;
-use crate::service::linux::install::{install, uninstall};
+use crate::service::linux::install::{install, log, start, status, stop, uninstall};
 
 mod install;
 
@@ -17,6 +17,18 @@ const SERVICE_DESCRIPTION: &str =
 pub enum ServiceCommand {
     Install,
     Uninstall,
+    Start,
+    Stop,
+    Status,
+    Log {
+        /// Stream log output continuously (follow log).
+        #[arg(short, long)]
+        follow: bool,
+
+        /// Number of lines to output (default 1000).
+        #[arg(short = 'n', long, default_value_t = 1000)]
+        lines: usize,
+    },
     Run,
 }
 
@@ -25,6 +37,10 @@ impl AppContext {
         match command {
             ServiceCommand::Install => install(),
             ServiceCommand::Uninstall => uninstall(),
+            ServiceCommand::Start => start(),
+            ServiceCommand::Stop => stop(),
+            ServiceCommand::Status => status(),
+            ServiceCommand::Log { follow, lines } => log(*follow, *lines),
             ServiceCommand::Run => self.run_service(ctrl_c()).await,
         }
         .with_context(|| format!("unable to run service command: {command:?}"))

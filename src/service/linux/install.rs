@@ -30,11 +30,16 @@ pub fn install() -> Result<()> {
     Ok(())
 }
 
-pub fn uninstall() -> Result<()> {
+fn ensure_installed() -> Result<()> {
     let unit_path = Path::new(UNIT_FILE);
     if !unit_path.exists() {
         bail!("service '{SERVICE_NAME}' is not installed");
     }
+    Ok(())
+}
+
+pub fn uninstall() -> Result<()> {
+    ensure_installed()?;
 
     exec(SYSTEMCTL, &["disable", "--now", SERVICE_NAME])
         .with_context(|| "unable to disable systemd service (did you forget 'sudo'?)")?;
@@ -44,6 +49,36 @@ pub fn uninstall() -> Result<()> {
     exec(SYSTEMCTL, &["daemon-reload"])
         .with_context(|| "unable to reload systemd daemon (did you forget 'sudo'?)")?;
     Ok(())
+}
+
+pub fn start() -> Result<()> {
+    ensure_installed()?;
+    exec(SYSTEMCTL, &["start", SERVICE_NAME]).with_context(|| {
+        "unable to start systemd service (did you forget 'sudo'?)"
+    })
+}
+
+pub fn stop() -> Result<()> {
+    ensure_installed()?;
+    exec(SYSTEMCTL, &["stop", SERVICE_NAME]).with_context(|| {
+        "unable to stop systemd service (did you forget 'sudo'?)"
+    })
+}
+
+pub fn status() -> Result<()> {
+    ensure_installed()?;
+    exec(SYSTEMCTL, &["status", SERVICE_NAME]).with_context(|| {
+        "unable to query systemd service status (did you forget 'sudo'?)"
+    })
+}
+
+pub fn log(follow: bool, lines: usize) -> Result<()> {
+    let lines_str = lines.to_string();
+    if follow {
+        exec("journalctl", &["-u", SERVICE_NAME, "-n", &lines_str, "-f"])
+    } else {
+        exec("journalctl", &["-u", SERVICE_NAME, "-n", &lines_str])
+    }
 }
 
 fn gen_unit_def(exec: &str) -> String {

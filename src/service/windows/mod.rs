@@ -5,7 +5,7 @@ pub use main::run_as_service;
 pub use sys::is_in_windows_service;
 
 use crate::AppContext;
-use crate::service::windows::install::{install, uninstall};
+use crate::service::windows::install::{install, log, start, status, stop, uninstall};
 
 mod install;
 mod main;
@@ -21,6 +21,18 @@ const SERVICE_DESCRIPTION: &str =
 pub enum ServiceCommand {
     Install,
     Uninstall,
+    Start,
+    Stop,
+    Status,
+    Log {
+        /// Stream log output continuously (follow log).
+        #[arg(short, long)]
+        follow: bool,
+
+        /// Number of lines to output (default 1000).
+        #[arg(short = 'n', long, default_value_t = 1000)]
+        lines: usize,
+    },
 }
 
 impl AppContext {
@@ -32,6 +44,10 @@ impl AppContext {
         match command {
             ServiceCommand::Install => install()?,
             ServiceCommand::Uninstall => uninstall()?,
+            ServiceCommand::Start => start()?,
+            ServiceCommand::Stop => stop()?,
+            ServiceCommand::Status => status()?,
+            ServiceCommand::Log { follow, lines } => log(*follow, *lines)?,
         }
         Ok(())
     }

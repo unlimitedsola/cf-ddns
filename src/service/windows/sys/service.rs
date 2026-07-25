@@ -53,4 +53,14 @@ impl Service {
         }
         .context("Failed to update service description")
     }
+
+    /// Queries the current status of the service.
+    ///
+    /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-queryservicestatus>
+    pub fn query_status(&self) -> Result<Services::SERVICE_STATUS> {
+        let mut status = Services::SERVICE_STATUS::default();
+        unsafe { Services::QueryServiceStatus(self.handle.raw_handle(), &mut status) }
+            .context("Failed to query service status")?;
+        Ok(status)
+    }
 }

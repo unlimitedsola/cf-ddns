@@ -15,6 +15,8 @@ use crate::service::macos::SERVICE_NAME;
 use crate::{current_exe, current_exe_str};
 
 const PLIST_PATH: &str = concatcp!("/Library/LaunchDaemons/", SERVICE_NAME, ".plist");
+const SYSTEM_TARGET: &str = concatcp!("system/", SERVICE_NAME);
+const LOG_FILE_NAME: &str = concatcp!(SERVICE_NAME, ".log");
 
 pub fn install(
     user: Option<&str>,
@@ -54,18 +56,23 @@ pub fn install(
 }
 
 fn default_log_path() -> PathBuf {
-    current_exe().with_file_name(concatcp!(SERVICE_NAME, ".log"))
+    current_exe().with_file_name(LOG_FILE_NAME)
 }
 
 fn default_id_cache_path() -> PathBuf {
     current_exe().with_file_name("id_cache.json")
 }
 
-pub fn uninstall() -> Result<()> {
+fn ensure_installed() -> Result<()> {
     let plist_path = Path::new(PLIST_PATH);
     if !plist_path.exists() {
         bail!("service '{SERVICE_NAME}' is not installed");
     }
+    Ok(())
+}
+
+pub fn uninstall() -> Result<()> {
+    ensure_installed()?;
 
     exec(LAUNCHCTL, &["bootout", "system", PLIST_PATH]).with_context(|| {
         "unable to unregister service with launchctl (did you forget 'sudo'?)"
@@ -73,6 +80,41 @@ pub fn uninstall() -> Result<()> {
     remove_file(PLIST_PATH).with_context(|| {
         format!("unable to remove service file at {PLIST_PATH} (did you forget 'sudo'?)")
     })
+}
+
+pub fn start() -> Result<()> {
+    ensure_installed()?;
+    exec(LAUNCHCTL, &["kickstart", "-k", SYSTEM_TARGET]).with_context(|| {
+        "unable to start service with launchctl (did you forget 'sudo'?)"
+    })
+}
+
+pub fn stop() -> Result<()> {
+    ensure_installed()?;
+    exec(LAUNCHCTL, &["kill", "SIGTERM", SYSTEM_TARGET]).with_context(|| {
+        "unable to stop service with launchctl (did you forget 'sudo'?)"
+    })
+}
+
+pub fn status() -> Result<()> {
+    ensure_installed()?;
+    exec(LAUNCHCTL, &["print", SYSTEM_TARGET]).with_context(|| {
+        "unable to query service status with launchctl (did you forget 'sudo'?)"
+    })
+}
+
+pub fn log(follow: bool, lines: usize) -> Result<()> {
+    let log_path = default_log_path();
+    if !log_path.exists() {
+        bail!("log file '{}' does not exist yet", log_path.display());
+    }
+    let log_str = log_path.to_str().expect("valid UTF-8 path");
+    let lines_str = lines.to_string();
+    if follow {
+        exec("tail", &["-n", &lines_str, "-f", log_str])
+    } else {
+        exec("tail", &["-n", &lines_str, log_str])
+    }
 }
 
 #[derive(Serialize)]
