@@ -11,7 +11,12 @@ const SERVICE_NAME: &str = "cf-ddns";
 
 #[derive(Debug, Subcommand, Clone)]
 pub enum ServiceCommand {
-    Install,
+    Install {
+        /// Optional user account to run the daemon as (e.g. --user nobody).
+        /// If omitted, runs as root (default).
+        #[arg(long)]
+        user: Option<String>,
+    },
     Uninstall,
     Run,
 }
@@ -19,7 +24,7 @@ pub enum ServiceCommand {
 impl AppContext {
     pub async fn run_service_command(&self, command: &ServiceCommand) -> Result<()> {
         match command {
-            ServiceCommand::Install => install(),
+            ServiceCommand::Install { user } => install(user.as_deref()),
             ServiceCommand::Uninstall => uninstall(),
             ServiceCommand::Run => self.run_service(ctrl_c()).await,
         }

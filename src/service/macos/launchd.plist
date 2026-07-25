@@ -3,13 +3,12 @@
 <plist version="1.0">
 <dict>
 	<key>Label</key>
-	<string>{label}</string>
-
+	<string>{label}</string>{user_section}
 	<key>ProgramArguments</key>
 	<array>
 		<string>{exec}</string>
 		<string>service</string>
-		<string>run</string>
+		<string>run</string>{extra_args}
 	</array>
 
     <key>KeepAlive</key>
