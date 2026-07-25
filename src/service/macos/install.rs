@@ -5,7 +5,7 @@ use std::io::Write;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use const_format::concatcp;
 use serde::Serialize;
 use tracing::warn;
@@ -21,6 +21,14 @@ pub fn install(
     id_cache: Option<&Path>,
     log_file: Option<&Path>,
 ) -> Result<()> {
+    let plist_path = Path::new(PLIST_PATH);
+    if plist_path.exists() {
+        bail!(
+            "service '{SERVICE_NAME}' is already installed at {}",
+            plist_path.display()
+        );
+    }
+
     let log_path = log_file.map_or_else(default_log_path, Path::to_path_buf);
     let id_cache_path = id_cache.map_or_else(default_id_cache_path, Path::to_path_buf);
 
@@ -29,7 +37,9 @@ pub fn install(
         check_writable_for_user(&id_cache_path, u);
     }
 
-    let file = fs::File::create(PLIST_PATH).context("unable to create service file")?;
+    let file = fs::File::create(PLIST_PATH).with_context(|| {
+        format!("unable to create service file at {PLIST_PATH} (did you forget 'sudo'?)")
+    })?;
     write_plist(
         file,
         current_exe_str(),
@@ -38,7 +48,9 @@ pub fn install(
         id_cache.and_then(Path::to_str),
     )?;
 
-    exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH])
+    exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH]).with_context(|| {
+        "unable to register service with launchctl (did you forget 'sudo'?)"
+    })
 }
 
 fn default_log_path() -> PathBuf {
@@ -50,8 +62,17 @@ fn default_id_cache_path() -> PathBuf {
 }
 
 pub fn uninstall() -> Result<()> {
-    exec(LAUNCHCTL, &["bootout", "system", PLIST_PATH])?;
-    remove_file(PLIST_PATH).context("unable to remove service file")
+    let plist_path = Path::new(PLIST_PATH);
+    if !plist_path.exists() {
+        bail!("service '{SERVICE_NAME}' is not installed");
+    }
+
+    exec(LAUNCHCTL, &["bootout", "system", PLIST_PATH]).with_context(|| {
+        "unable to unregister service with launchctl (did you forget 'sudo'?)"
+    })?;
+    remove_file(PLIST_PATH).with_context(|| {
+        format!("unable to remove service file at {PLIST_PATH} (did you forget 'sudo'?)")
+    })
 }
 
 #[derive(Serialize)]
