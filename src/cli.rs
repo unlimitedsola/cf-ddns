@@ -104,7 +104,24 @@ mod tests {
 
     #[test]
     fn test_top_level_args_before_subcommand() -> Result<()> {
-        let cli = Cli::try_parse_from(["cf-ddns", "--id-cache", "/tmp/cache.json", "service", "run"])?;
+        let cli = Cli::try_parse_from(["cf-ddns", "--id-cache", "/tmp/cache.json", "update"])?;
+        assert_eq!(
+            cli.id_cache.context("id_cache is missing")?.to_str(),
+            Some("/tmp/cache.json")
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "service")]
+    fn test_service_subcommand_args() -> Result<()> {
+        let cli = Cli::try_parse_from([
+            "cf-ddns",
+            "--id-cache",
+            "/tmp/cache.json",
+            "service",
+            "status",
+        ])?;
         assert_eq!(
             cli.id_cache.context("id_cache is missing")?.to_str(),
             Some("/tmp/cache.json")

@@ -4,10 +4,10 @@ use std::path::PathBuf;
 use std::thread::sleep;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use windows::Win32::System::Services::{
-    SERVICE_AUTO_START, SERVICE_CONTINUE_PENDING, SERVICE_PAUSED, SERVICE_PAUSE_PENDING,
-    SERVICE_RUNNING, SERVICE_START_PENDING, SERVICE_STOPPED, SERVICE_STOP_PENDING,
+    SERVICE_AUTO_START, SERVICE_CONTINUE_PENDING, SERVICE_PAUSE_PENDING, SERVICE_PAUSED,
+    SERVICE_RUNNING, SERVICE_START_PENDING, SERVICE_STOP_PENDING, SERVICE_STOPPED,
 };
 
 use crate::service::windows::sys::{ServiceCreateConfig, ServiceManager};

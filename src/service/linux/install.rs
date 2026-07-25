@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use const_format::concatcp;
 
-use crate::config::{is_system_bin_dir, Config};
+use crate::config::{Config, is_system_bin_dir};
 use crate::service::exec::exec;
 use crate::service::linux::{SERVICE_DESCRIPTION, SERVICE_NAME};
 use crate::{current_exe, current_exe_str};
@@ -72,23 +72,20 @@ pub fn uninstall() -> Result<()> {
 
 pub fn start() -> Result<()> {
     ensure_installed()?;
-    exec(SYSTEMCTL, &["start", SERVICE_NAME]).with_context(|| {
-        "unable to start systemd service (did you forget 'sudo'?)"
-    })
+    exec(SYSTEMCTL, &["start", SERVICE_NAME])
+        .with_context(|| "unable to start systemd service (did you forget 'sudo'?)")
 }
 
 pub fn stop() -> Result<()> {
     ensure_installed()?;
-    exec(SYSTEMCTL, &["stop", SERVICE_NAME]).with_context(|| {
-        "unable to stop systemd service (did you forget 'sudo'?)"
-    })
+    exec(SYSTEMCTL, &["stop", SERVICE_NAME])
+        .with_context(|| "unable to stop systemd service (did you forget 'sudo'?)")
 }
 
 pub fn status() -> Result<()> {
     ensure_installed()?;
-    exec(SYSTEMCTL, &["status", SERVICE_NAME]).with_context(|| {
-        "unable to query systemd service status (did you forget 'sudo'?)"
-    })
+    exec(SYSTEMCTL, &["status", SERVICE_NAME])
+        .with_context(|| "unable to query systemd service status (did you forget 'sudo'?)")
 }
 
 pub fn log(follow: bool, lines: usize) -> Result<()> {

@@ -5,7 +5,7 @@ use std::io::Write;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use const_format::concatcp;
 use serde::Serialize;
 use tracing::warn;
@@ -18,11 +18,7 @@ const PLIST_PATH: &str = concatcp!("/Library/LaunchDaemons/", SERVICE_NAME, ".pl
 const SYSTEM_TARGET: &str = concatcp!("system/", SERVICE_NAME);
 const LOG_FILE_NAME: &str = concatcp!(SERVICE_NAME, ".log");
 
-pub fn install(
-    user: Option<&str>,
-    id_cache: Option<&Path>,
-    log_file: Option<&Path>,
-) -> Result<()> {
+pub fn install(user: Option<&str>, id_cache: Option<&Path>, log_file: Option<&Path>) -> Result<()> {
     let plist_path = Path::new(PLIST_PATH);
     if plist_path.exists() {
         bail!(
@@ -50,9 +46,8 @@ pub fn install(
         id_cache.and_then(Path::to_str),
     )?;
 
-    exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH]).with_context(|| {
-        "unable to register service with launchctl (did you forget 'sudo'?)"
-    })
+    exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH])
+        .with_context(|| "unable to register service with launchctl (did you forget 'sudo'?)")
 }
 
 fn default_log_path() -> PathBuf {
@@ -74,9 +69,8 @@ fn ensure_installed() -> Result<()> {
 pub fn uninstall() -> Result<()> {
     ensure_installed()?;
 
-    exec(LAUNCHCTL, &["bootout", "system", PLIST_PATH]).with_context(|| {
-        "unable to unregister service with launchctl (did you forget 'sudo'?)"
-    })?;
+    exec(LAUNCHCTL, &["bootout", "system", PLIST_PATH])
+        .with_context(|| "unable to unregister service with launchctl (did you forget 'sudo'?)")?;
     remove_file(PLIST_PATH).with_context(|| {
         format!("unable to remove service file at {PLIST_PATH} (did you forget 'sudo'?)")
     })
@@ -84,23 +78,20 @@ pub fn uninstall() -> Result<()> {
 
 pub fn start() -> Result<()> {
     ensure_installed()?;
-    exec(LAUNCHCTL, &["kickstart", "-k", SYSTEM_TARGET]).with_context(|| {
-        "unable to start service with launchctl (did you forget 'sudo'?)"
-    })
+    exec(LAUNCHCTL, &["kickstart", "-k", SYSTEM_TARGET])
+        .with_context(|| "unable to start service with launchctl (did you forget 'sudo'?)")
 }
 
 pub fn stop() -> Result<()> {
     ensure_installed()?;
-    exec(LAUNCHCTL, &["kill", "SIGTERM", SYSTEM_TARGET]).with_context(|| {
-        "unable to stop service with launchctl (did you forget 'sudo'?)"
-    })
+    exec(LAUNCHCTL, &["kill", "SIGTERM", SYSTEM_TARGET])
+        .with_context(|| "unable to stop service with launchctl (did you forget 'sudo'?)")
 }
 
 pub fn status() -> Result<()> {
     ensure_installed()?;
-    exec(LAUNCHCTL, &["print", SYSTEM_TARGET]).with_context(|| {
-        "unable to query service status with launchctl (did you forget 'sudo'?)"
-    })
+    exec(LAUNCHCTL, &["print", SYSTEM_TARGET])
+        .with_context(|| "unable to query service status with launchctl (did you forget 'sudo'?)")
 }
 
 pub fn log(follow: bool, lines: usize) -> Result<()> {
@@ -155,7 +146,9 @@ fn write_plist<W: Write>(
         label: SERVICE_NAME,
         user_name: user,
         program_arguments,
-        keep_alive: KeepAlive { network_state: true },
+        keep_alive: KeepAlive {
+            network_state: true,
+        },
         run_at_load: true,
         standard_out_path: log,
         standard_error_path: log,
@@ -222,28 +215,35 @@ mod tests {
     #[test]
     fn plist_gen_default_rootful() -> Result<()> {
         let mut buf = Vec::new();
-        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", None, None)?;
+        write_plist(
+            &mut buf,
+            "/usr/local/bin/cf-ddns",
+            "/var/log/cf-ddns.log",
+            None,
+            None,
+        )?;
         let val: plist::Value = plist::from_bytes(&buf).context("parse plist")?;
         let dict = val.as_dictionary().context("dict missing")?;
 
         assert_eq!(
-            dict.get("Label").and_then(|v| v.as_string()),
+            dict.get("Label").and_then(plist::Value::as_string),
             Some("cf-ddns")
         );
         assert_eq!(dict.get("UserName"), None);
         assert_eq!(
-            dict.get("RunAtLoad").and_then(|v| v.as_boolean()),
+            dict.get("RunAtLoad").and_then(plist::Value::as_boolean),
             Some(true)
         );
         assert_eq!(
-            dict.get("StandardOutPath").and_then(|v| v.as_string()),
+            dict.get("StandardOutPath")
+                .and_then(plist::Value::as_string),
             Some("/var/log/cf-ddns.log")
         );
 
         let args: Vec<&str> = dict
             .get("ProgramArguments")
-            .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_string()).collect())
+            .and_then(plist::Value::as_array)
+            .map(|arr| arr.iter().filter_map(plist::Value::as_string).collect())
             .unwrap_or_default();
 
         assert_eq!(args, vec!["/usr/local/bin/cf-ddns", "service", "run"]);
@@ -253,23 +253,29 @@ mod tests {
     #[test]
     fn plist_gen_with_user() -> Result<()> {
         let mut buf = Vec::new();
-        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", Some("nobody"), None)?;
+        write_plist(
+            &mut buf,
+            "/usr/local/bin/cf-ddns",
+            "/var/log/cf-ddns.log",
+            Some("nobody"),
+            None,
+        )?;
         let val: plist::Value = plist::from_bytes(&buf).context("parse plist")?;
         let dict = val.as_dictionary().context("dict missing")?;
 
         assert_eq!(
-            dict.get("Label").and_then(|v| v.as_string()),
+            dict.get("Label").and_then(plist::Value::as_string),
             Some("cf-ddns")
         );
         assert_eq!(
-            dict.get("UserName").and_then(|v| v.as_string()),
+            dict.get("UserName").and_then(plist::Value::as_string),
             Some("nobody")
         );
 
         let args: Vec<&str> = dict
             .get("ProgramArguments")
-            .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_string()).collect())
+            .and_then(plist::Value::as_array)
+            .map(|arr| arr.iter().filter_map(plist::Value::as_string).collect())
             .unwrap_or_default();
 
         assert_eq!(args, vec!["/usr/local/bin/cf-ddns", "service", "run"]);
@@ -290,22 +296,24 @@ mod tests {
         let dict = val.as_dictionary().context("dict missing")?;
 
         assert_eq!(
-            dict.get("UserName").and_then(|v| v.as_string()),
+            dict.get("UserName").and_then(plist::Value::as_string),
             Some("nobody")
         );
         assert_eq!(
-            dict.get("StandardOutPath").and_then(|v| v.as_string()),
+            dict.get("StandardOutPath")
+                .and_then(plist::Value::as_string),
             Some("/var/log/custom.log")
         );
         assert_eq!(
-            dict.get("StandardErrorPath").and_then(|v| v.as_string()),
+            dict.get("StandardErrorPath")
+                .and_then(plist::Value::as_string),
             Some("/var/log/custom.log")
         );
 
         let args: Vec<&str> = dict
             .get("ProgramArguments")
-            .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_string()).collect())
+            .and_then(plist::Value::as_array)
+            .map(|arr| arr.iter().filter_map(plist::Value::as_string).collect())
             .unwrap_or_default();
 
         assert_eq!(
