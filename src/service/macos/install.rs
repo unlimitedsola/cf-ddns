@@ -1,11 +1,13 @@
 use std::ffi::CString;
 use std::fs;
 use std::fs::remove_file;
+use std::io::Write;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
+use serde::Serialize;
 use tracing::warn;
 
 use crate::service::exec::exec;
@@ -23,13 +25,14 @@ pub fn install(user: Option<&str>) -> Result<()> {
         check_writable_for_user(id_cache_path, u);
     }
 
-    let plist = gen_plist(
+    let file = fs::File::create(PLIST_PATH).context("unable to create service file")?;
+    write_plist(
+        file,
         current_exe_str(),
         log_path.to_str().expect("path should be valid UTF-8"),
         user,
-    );
+    )?;
 
-    fs::write(PLIST_PATH, plist).context("unable to write service file")?;
     exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH])
 }
 
@@ -38,26 +41,43 @@ pub fn uninstall() -> Result<()> {
     remove_file(PLIST_PATH).context("unable to remove service file")
 }
 
-fn gen_plist(exec: &str, log: &str, user: Option<&str>) -> String {
-    let user_section = match user {
-        Some(u) => format!("\n\n\t<key>UserName</key>\n\t<string>{u}</string>"),
-        None => String::new(),
-    };
-    let extra_args = match user {
-        Some(_) => {
-            "\n\t\t<string>--id-cache</string>\n\t\t<string>/tmp/cf-ddns.json</string>".to_owned()
-        }
-        None => String::new(),
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct KeepAlive {
+    network_state: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct LaunchdPlist<'a> {
+    label: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_name: Option<&'a str>,
+    program_arguments: Vec<&'a str>,
+    keep_alive: KeepAlive,
+    run_at_load: bool,
+    standard_out_path: &'a str,
+    standard_error_path: &'a str,
+}
+
+fn write_plist<W: Write>(writer: W, exec: &str, log: &str, user: Option<&str>) -> Result<()> {
+    let mut program_arguments = vec![exec, "service", "run"];
+    if user.is_some() {
+        program_arguments.push("--id-cache");
+        program_arguments.push("/tmp/cf-ddns.json");
+    }
+
+    let plist = LaunchdPlist {
+        label: SERVICE_NAME,
+        user_name: user,
+        program_arguments,
+        keep_alive: KeepAlive { network_state: true },
+        run_at_load: true,
+        standard_out_path: log,
+        standard_error_path: log,
     };
 
-    format!(
-        include_str!("launchd.plist"),
-        label = SERVICE_NAME,
-        user_section = user_section,
-        exec = exec,
-        extra_args = extra_args,
-        log = log
-    )
+    plist::to_writer_xml(writer, &plist).context("unable to serialize launchd plist XML")
 }
 
 #[expect(
@@ -116,84 +136,61 @@ mod tests {
     use super::*;
 
     #[test]
-    fn plist_gen_default_rootful() {
-        let plist = gen_plist("/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", None);
+    fn plist_gen_default_rootful() -> Result<()> {
+        let mut buf = Vec::new();
+        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", None)?;
+        let val: plist::Value = plist::from_bytes(&buf).context("parse plist")?;
+        let dict = val.as_dictionary().context("dict missing")?;
+
         assert_eq!(
-            plist,
-            r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>Label</key>
-	<string>cf-ddns</string>
-
-	<key>ProgramArguments</key>
-	<array>
-		<string>/usr/local/bin/cf-ddns</string>
-		<string>service</string>
-		<string>run</string>
-	</array>
-
-    <key>KeepAlive</key>
-    <dict>
-      <key>NetworkState</key>
-      <true/>
-    </dict>
-
-	<key>RunAtLoad</key>
-	<true/>
-
-    <key>StandardOutPath</key>
-    <string>/var/log/cf-ddns.log</string>
-    <key>StandardErrorPath</key>
-    <string>/var/log/cf-ddns.log</string>
-</dict>
-</plist>
-"#
+            dict.get("Label").and_then(|v| v.as_string()),
+            Some("cf-ddns")
         );
+        assert_eq!(dict.get("UserName"), None);
+        assert_eq!(
+            dict.get("RunAtLoad").and_then(|v| v.as_boolean()),
+            Some(true)
+        );
+        assert_eq!(
+            dict.get("StandardOutPath").and_then(|v| v.as_string()),
+            Some("/var/log/cf-ddns.log")
+        );
+        Ok(())
     }
 
     #[test]
-    fn plist_gen_with_user() {
-        let plist = gen_plist("/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", Some("nobody"));
+    fn plist_gen_with_user() -> Result<()> {
+        let mut buf = Vec::new();
+        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", Some("nobody"))?;
+        let val: plist::Value = plist::from_bytes(&buf).context("parse plist")?;
+        let dict = val.as_dictionary().context("dict missing")?;
+
         assert_eq!(
-            plist,
-            r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>Label</key>
-	<string>cf-ddns</string>
-
-	<key>UserName</key>
-	<string>nobody</string>
-
-	<key>ProgramArguments</key>
-	<array>
-		<string>/usr/local/bin/cf-ddns</string>
-		<string>service</string>
-		<string>run</string>
-		<string>--id-cache</string>
-		<string>/tmp/cf-ddns.json</string>
-	</array>
-
-    <key>KeepAlive</key>
-    <dict>
-      <key>NetworkState</key>
-      <true/>
-    </dict>
-
-	<key>RunAtLoad</key>
-	<true/>
-
-    <key>StandardOutPath</key>
-    <string>/var/log/cf-ddns.log</string>
-    <key>StandardErrorPath</key>
-    <string>/var/log/cf-ddns.log</string>
-</dict>
-</plist>
-"#
+            dict.get("Label").and_then(|v| v.as_string()),
+            Some("cf-ddns")
         );
+        assert_eq!(
+            dict.get("UserName").and_then(|v| v.as_string()),
+            Some("nobody")
+        );
+
+        let args: Vec<&str> = dict
+            .get("ProgramArguments")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_string()).collect())
+            .unwrap_or_default();
+
+        assert_eq!(
+            args,
+            vec![
+                "/usr/local/bin/cf-ddns",
+                "service",
+                "run",
+                "--id-cache",
+                "/tmp/cf-ddns.json"
+            ]
+        );
+        Ok(())
     }
 
     #[test]

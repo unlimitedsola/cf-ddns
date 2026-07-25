@@ -40,6 +40,9 @@ netlink-packet-core = "0.8"
 netlink-packet-route = "0.31"
 netlink-sys = "0.8"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+plist = { version = "1.10.0", features = ["serde"] }
+
 [target.'cfg(windows)'.dependencies.windows]
 version = "0.62.2"
 features = [
