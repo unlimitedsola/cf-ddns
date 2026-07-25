@@ -22,6 +22,10 @@ pub enum ServiceCommand {
         /// Optional path to the zone/record ID cache file for the service.
         #[arg(long)]
         id_cache: Option<PathBuf>,
+
+        /// Optional path to the log file for stdout/stderr redirection.
+        #[arg(long)]
+        log_file: Option<PathBuf>,
     },
     Uninstall,
     Run,
@@ -30,9 +34,11 @@ pub enum ServiceCommand {
 impl AppContext {
     pub async fn run_service_command(&self, command: &ServiceCommand) -> Result<()> {
         match command {
-            ServiceCommand::Install { user, id_cache } => {
-                install(user.as_deref(), id_cache.as_deref())
-            }
+            ServiceCommand::Install {
+                user,
+                id_cache,
+                log_file,
+            } => install(user.as_deref(), id_cache.as_deref(), log_file.as_deref()),
             ServiceCommand::Uninstall => uninstall(),
             ServiceCommand::Run => self.run_service(ctrl_c()).await,
         }

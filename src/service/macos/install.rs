@@ -3,7 +3,7 @@ use std::fs;
 use std::fs::remove_file;
 use std::io::Write;
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
@@ -16,10 +16,13 @@ use crate::{current_exe, current_exe_str};
 
 const PLIST_PATH: &str = concatcp!("/Library/LaunchDaemons/", SERVICE_NAME, ".plist");
 
-pub fn install(user: Option<&str>, id_cache: Option<&Path>) -> Result<()> {
-    let log_path = current_exe().with_file_name(concatcp!(SERVICE_NAME, ".log"));
-    let id_cache_path =
-        id_cache.map_or_else(|| current_exe().with_file_name("id_cache.json"), Path::to_path_buf);
+pub fn install(
+    user: Option<&str>,
+    id_cache: Option<&Path>,
+    log_file: Option<&Path>,
+) -> Result<()> {
+    let log_path = log_file.map_or_else(default_log_path, Path::to_path_buf);
+    let id_cache_path = id_cache.map_or_else(default_id_cache_path, Path::to_path_buf);
 
     if let Some(u) = user {
         check_writable_for_user(&log_path, u);
@@ -36,6 +39,14 @@ pub fn install(user: Option<&str>, id_cache: Option<&Path>) -> Result<()> {
     )?;
 
     exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH])
+}
+
+fn default_log_path() -> PathBuf {
+    current_exe().with_file_name(concatcp!(SERVICE_NAME, ".log"))
+}
+
+fn default_id_cache_path() -> PathBuf {
+    current_exe().with_file_name("id_cache.json")
 }
 
 pub fn uninstall() -> Result<()> {
@@ -206,7 +217,7 @@ mod tests {
         write_plist(
             &mut buf,
             "/usr/local/bin/cf-ddns",
-            "/var/log/cf-ddns.log",
+            "/var/log/custom.log",
             Some("nobody"),
             Some("/tmp/custom_cache.json"),
         )?;
@@ -216,6 +227,14 @@ mod tests {
         assert_eq!(
             dict.get("UserName").and_then(|v| v.as_string()),
             Some("nobody")
+        );
+        assert_eq!(
+            dict.get("StandardOutPath").and_then(|v| v.as_string()),
+            Some("/var/log/custom.log")
+        );
+        assert_eq!(
+            dict.get("StandardErrorPath").and_then(|v| v.as_string()),
+            Some("/var/log/custom.log")
         );
 
         let args: Vec<&str> = dict
