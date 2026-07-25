@@ -16,13 +16,14 @@ use crate::{current_exe, current_exe_str};
 
 const PLIST_PATH: &str = concatcp!("/Library/LaunchDaemons/", SERVICE_NAME, ".plist");
 
-pub fn install(user: Option<&str>) -> Result<()> {
+pub fn install(user: Option<&str>, id_cache: Option<&Path>) -> Result<()> {
     let log_path = current_exe().with_file_name(concatcp!(SERVICE_NAME, ".log"));
+    let id_cache_path =
+        id_cache.map_or_else(|| current_exe().with_file_name("id_cache.json"), Path::to_path_buf);
 
     if let Some(u) = user {
         check_writable_for_user(&log_path, u);
-        let id_cache_path = Path::new("/tmp/cf-ddns.json");
-        check_writable_for_user(id_cache_path, u);
+        check_writable_for_user(&id_cache_path, u);
     }
 
     let file = fs::File::create(PLIST_PATH).context("unable to create service file")?;
@@ -31,6 +32,7 @@ pub fn install(user: Option<&str>) -> Result<()> {
         current_exe_str(),
         log_path.to_str().expect("path should be valid UTF-8"),
         user,
+        id_cache.and_then(Path::to_str),
     )?;
 
     exec(LAUNCHCTL, &["bootstrap", "system", PLIST_PATH])
@@ -60,11 +62,17 @@ struct LaunchdPlist<'a> {
     standard_error_path: &'a str,
 }
 
-fn write_plist<W: Write>(writer: W, exec: &str, log: &str, user: Option<&str>) -> Result<()> {
+fn write_plist<W: Write>(
+    writer: W,
+    exec: &str,
+    log: &str,
+    user: Option<&str>,
+    id_cache: Option<&str>,
+) -> Result<()> {
     let mut program_arguments = vec![exec, "service", "run"];
-    if user.is_some() {
+    if let Some(cache_path) = id_cache {
         program_arguments.push("--id-cache");
-        program_arguments.push("/tmp/cf-ddns.json");
+        program_arguments.push(cache_path);
     }
 
     let plist = LaunchdPlist {
@@ -138,7 +146,7 @@ mod tests {
     #[test]
     fn plist_gen_default_rootful() -> Result<()> {
         let mut buf = Vec::new();
-        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", None)?;
+        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", None, None)?;
         let val: plist::Value = plist::from_bytes(&buf).context("parse plist")?;
         let dict = val.as_dictionary().context("dict missing")?;
 
@@ -155,13 +163,21 @@ mod tests {
             dict.get("StandardOutPath").and_then(|v| v.as_string()),
             Some("/var/log/cf-ddns.log")
         );
+
+        let args: Vec<&str> = dict
+            .get("ProgramArguments")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_string()).collect())
+            .unwrap_or_default();
+
+        assert_eq!(args, vec!["/usr/local/bin/cf-ddns", "service", "run"]);
         Ok(())
     }
 
     #[test]
     fn plist_gen_with_user() -> Result<()> {
         let mut buf = Vec::new();
-        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", Some("nobody"))?;
+        write_plist(&mut buf, "/usr/local/bin/cf-ddns", "/var/log/cf-ddns.log", Some("nobody"), None)?;
         let val: plist::Value = plist::from_bytes(&buf).context("parse plist")?;
         let dict = val.as_dictionary().context("dict missing")?;
 
@@ -180,6 +196,34 @@ mod tests {
             .map(|arr| arr.iter().filter_map(|v| v.as_string()).collect())
             .unwrap_or_default();
 
+        assert_eq!(args, vec!["/usr/local/bin/cf-ddns", "service", "run"]);
+        Ok(())
+    }
+
+    #[test]
+    fn plist_gen_with_user_and_id_cache() -> Result<()> {
+        let mut buf = Vec::new();
+        write_plist(
+            &mut buf,
+            "/usr/local/bin/cf-ddns",
+            "/var/log/cf-ddns.log",
+            Some("nobody"),
+            Some("/tmp/custom_cache.json"),
+        )?;
+        let val: plist::Value = plist::from_bytes(&buf).context("parse plist")?;
+        let dict = val.as_dictionary().context("dict missing")?;
+
+        assert_eq!(
+            dict.get("UserName").and_then(|v| v.as_string()),
+            Some("nobody")
+        );
+
+        let args: Vec<&str> = dict
+            .get("ProgramArguments")
+            .and_then(|v| v.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_string()).collect())
+            .unwrap_or_default();
+
         assert_eq!(
             args,
             vec![
@@ -187,7 +231,7 @@ mod tests {
                 "service",
                 "run",
                 "--id-cache",
-                "/tmp/cf-ddns.json"
+                "/tmp/custom_cache.json"
             ]
         );
         Ok(())

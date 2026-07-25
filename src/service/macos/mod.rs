@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use tokio::signal::ctrl_c;
@@ -16,6 +18,10 @@ pub enum ServiceCommand {
         /// If omitted, runs as root (default).
         #[arg(long)]
         user: Option<String>,
+
+        /// Optional path to the zone/record ID cache file for the service.
+        #[arg(long)]
+        id_cache: Option<PathBuf>,
     },
     Uninstall,
     Run,
@@ -24,7 +30,9 @@ pub enum ServiceCommand {
 impl AppContext {
     pub async fn run_service_command(&self, command: &ServiceCommand) -> Result<()> {
         match command {
-            ServiceCommand::Install { user } => install(user.as_deref()),
+            ServiceCommand::Install { user, id_cache } => {
+                install(user.as_deref(), id_cache.as_deref())
+            }
             ServiceCommand::Uninstall => uninstall(),
             ServiceCommand::Run => self.run_service(ctrl_c()).await,
         }
