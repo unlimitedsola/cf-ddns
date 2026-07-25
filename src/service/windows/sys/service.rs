@@ -23,6 +23,22 @@ impl Service {
             .context("Failed to start service")
     }
 
+    /// Stops the service.
+    ///
+    /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-controlservice>
+    pub fn stop(&self) -> Result<()> {
+        let mut status = Services::SERVICE_STATUS::default();
+        unsafe {
+            Services::ControlService(
+                self.handle.raw_handle(),
+                Services::SERVICE_CONTROL_STOP,
+                &raw mut status,
+            )
+        }
+        .context("Failed to stop service")?;
+        Ok(())
+    }
+
     /// Deletes the service from the service control manager.
     /// This should also stop the service if it is running.
     ///
@@ -59,7 +75,7 @@ impl Service {
     /// <https://learn.microsoft.com/en-us/windows/win32/api/winsvc/nf-winsvc-queryservicestatus>
     pub fn query_status(&self) -> Result<Services::SERVICE_STATUS> {
         let mut status = Services::SERVICE_STATUS::default();
-        unsafe { Services::QueryServiceStatus(self.handle.raw_handle(), &mut status) }
+        unsafe { Services::QueryServiceStatus(self.handle.raw_handle(), &raw mut status) }
             .context("Failed to query service status")?;
         Ok(status)
     }
