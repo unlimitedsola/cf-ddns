@@ -1,16 +1,24 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 use const_format::concatcp;
 
-use crate::current_exe_str;
+use crate::{current_exe, current_exe_str};
 use crate::service::exec::exec;
 use crate::service::linux::{SERVICE_DESCRIPTION, SERVICE_NAME};
 
 const UNIT_FILE: &str = concatcp!("/etc/systemd/system/", SERVICE_NAME, ".service");
 
-pub fn install() -> Result<()> {
+fn default_config_path() -> PathBuf {
+    current_exe().with_file_name("config.toml")
+}
+
+fn default_id_cache_path() -> PathBuf {
+    PathBuf::from("/var/cache/cf-ddns/id_cache.json")
+}
+
+pub fn install(config: Option<&Path>, id_cache: Option<&Path>) -> Result<()> {
     let unit_path = Path::new(UNIT_FILE);
     if unit_path.exists() {
         bail!(
@@ -19,7 +27,10 @@ pub fn install() -> Result<()> {
         );
     }
 
-    let unit_def = gen_unit_def(current_exe_str());
+    let config_path = config.map_or_else(default_config_path, Path::to_path_buf);
+    let id_cache_path = id_cache.map_or_else(default_id_cache_path, Path::to_path_buf);
+
+    let unit_def = gen_unit_def(current_exe_str(), &config_path, &id_cache_path);
     fs::write(UNIT_FILE, unit_def.as_bytes()).with_context(|| {
         format!("unable to write systemd unit file at {UNIT_FILE} (did you forget 'sudo'?)")
     })?;
@@ -81,11 +92,13 @@ pub fn log(follow: bool, lines: usize) -> Result<()> {
     }
 }
 
-fn gen_unit_def(exec: &str) -> String {
+fn gen_unit_def(exec: &str, config: &Path, id_cache: &Path) -> String {
     format!(
         include_str!("systemd.service"),
         desc = SERVICE_DESCRIPTION,
-        exec = exec
+        exec = exec,
+        config = config.display(),
+        id_cache = id_cache.display(),
     )
 }
 
@@ -98,8 +111,10 @@ mod tests {
     #[test]
     fn unit_def() {
         let exec = "/usr/local/bin/cf-ddns";
+        let config = Path::new("/etc/cf-ddns/config.toml");
+        let id_cache = Path::new("/var/cache/cf-ddns/id_cache.json");
         assert_eq!(
-            gen_unit_def(exec),
+            gen_unit_def(exec, config, id_cache),
             r"[Unit]
 Description=Updates Cloudflare DNS records with the current public IP address.
 After=network-online.target
@@ -107,7 +122,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/cf-ddns --id-cache /var/cache/cf-ddns/id_cache.json service run
+ExecStart=/usr/local/bin/cf-ddns --config %d/config.toml --id-cache /var/cache/cf-ddns/id_cache.json service run
 Restart=on-failure
 
 # Privilege minimization & isolation
@@ -118,6 +133,9 @@ DynamicUser=yes
 
 # Automatically provision /var/cache/cf-ddns writable by the dynamic user
 CacheDirectory=cf-ddns
+
+# Pass secret config file securely from root to unprivileged DynamicUser
+LoadCredential=config.toml:/etc/cf-ddns/config.toml
 
 # Block access to /home, /root, and /run/user
 ProtectHome=yes

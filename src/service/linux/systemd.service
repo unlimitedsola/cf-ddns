@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={exec} --id-cache /var/cache/cf-ddns/id_cache.json service run
+ExecStart={exec} --config %d/config.toml --id-cache {id_cache} service run
 Restart=on-failure
 
 # Privilege minimization & isolation
@@ -16,6 +16,9 @@ DynamicUser=yes
 
 # Automatically provision /var/cache/cf-ddns writable by the dynamic user
 CacheDirectory=cf-ddns
+
+# Pass secret config file securely from root to unprivileged DynamicUser
+LoadCredential=config.toml:{config}
 
 # Block access to /home, /root, and /run/user
 ProtectHome=yes

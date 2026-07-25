@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Context;
 use anyhow::Result;
 use clap::Subcommand;
@@ -15,7 +17,15 @@ const SERVICE_DESCRIPTION: &str =
 
 #[derive(Debug, Subcommand, Clone)]
 pub enum ServiceCommand {
-    Install,
+    Install {
+        /// Optional path to the configuration file for the service.
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Optional path to the zone/record ID cache file for the service.
+        #[arg(long)]
+        id_cache: Option<PathBuf>,
+    },
     Uninstall,
     Start,
     Stop,
@@ -35,7 +45,9 @@ pub enum ServiceCommand {
 impl AppContext {
     pub async fn run_service_command(&self, command: &ServiceCommand) -> Result<()> {
         match command {
-            ServiceCommand::Install => install(),
+            ServiceCommand::Install { config, id_cache } => {
+                install(config.as_deref(), id_cache.as_deref())
+            }
             ServiceCommand::Uninstall => uninstall(),
             ServiceCommand::Start => start(),
             ServiceCommand::Stop => stop(),
