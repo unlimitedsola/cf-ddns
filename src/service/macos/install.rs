@@ -143,11 +143,13 @@ fn write_plist<W: Write>(
     user: Option<&str>,
     id_cache: Option<&str>,
 ) -> Result<()> {
-    let mut program_arguments = vec![exec, "service", "run"];
+    let mut program_arguments = vec![exec];
     if let Some(cache_path) = id_cache {
         program_arguments.push("--id-cache");
         program_arguments.push(cache_path);
     }
+    program_arguments.push("service");
+    program_arguments.push("run");
 
     let plist = LaunchdPlist {
         label: SERVICE_NAME,
@@ -310,10 +312,10 @@ mod tests {
             args,
             vec![
                 "/usr/local/bin/cf-ddns",
-                "service",
-                "run",
                 "--id-cache",
-                "/tmp/custom_cache.json"
+                "/tmp/custom_cache.json",
+                "service",
+                "run"
             ]
         );
         Ok(())
