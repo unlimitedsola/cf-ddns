@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Service management commands: `start`, `stop`, `status`, and `log` subcommands under `cf-ddns service`.
+
+### Changed
+
+- Default configuration path: when the binary is installed in a system binary directory (such as `/usr/bin` or `/usr/local/bin`), the default configuration file location is automatically resolved to `/etc/cf-ddns/config.toml`.
+- Systemd service security: service units run as an unprivileged dynamic user with process isolation and secure credential loading for secret configuration files.
+
+### Fixed
+
+- User-friendly service installation guards: gracefully handle repeated `install` or `uninstall` commands and provide clearer error context when administrative privileges are missing.
+
 ## [0.6.0] - 2026-07-19
 
 ### Added
