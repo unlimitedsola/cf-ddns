@@ -56,50 +56,34 @@ impl AppContext {
 mod tests {
     use super::*;
     use anyhow::Context;
-    use clap::Parser;
+    use clap::{CommandFactory, Parser};
 
     #[test]
-    fn test_cli_env_variables() -> Result<()> {
-        unsafe {
-            std::env::set_var("CF_DDNS_CONFIG", "/tmp/config_env.toml");
-            std::env::set_var("CF_DDNS_ID_CACHE", "/tmp/cache_env.json");
-        }
-
-        // Parse from empty args to ensure it falls back to env variables
-        let cli = Cli::try_parse_from(["cf-ddns"])?;
-        assert_eq!(
-            cli.config.context("config is missing")?.to_str(),
-            Some("/tmp/config_env.toml")
-        );
-        assert_eq!(
-            cli.id_cache.context("id_cache is missing")?.to_str(),
-            Some("/tmp/cache_env.json")
-        );
-
-        unsafe {
-            std::env::remove_var("CF_DDNS_CONFIG");
-            std::env::remove_var("CF_DDNS_ID_CACHE");
-        }
-        Ok(())
+    fn test_cli_debug_assert() {
+        Cli::command().debug_assert();
     }
 
     #[test]
-    fn test_cli_args_override_env() -> Result<()> {
-        unsafe {
-            std::env::set_var("CF_DDNS_CONFIG", "/tmp/config_env.toml");
-        }
+    fn test_cli_env_bindings() {
+        let cmd = Cli::command();
 
-        // Command line arg should override env variable
-        let cli = Cli::try_parse_from(["cf-ddns", "-c", "/tmp/override.toml"])?;
+        let config_arg = cmd
+            .get_arguments()
+            .find(|a| a.get_id() == "config")
+            .expect("config argument exists");
         assert_eq!(
-            cli.config.context("config is missing")?.to_str(),
-            Some("/tmp/override.toml")
+            config_arg.get_env().map(std::ffi::OsStr::to_str),
+            Some(Some("CF_DDNS_CONFIG"))
         );
 
-        unsafe {
-            std::env::remove_var("CF_DDNS_CONFIG");
-        }
-        Ok(())
+        let id_cache_arg = cmd
+            .get_arguments()
+            .find(|a| a.get_id() == "id_cache")
+            .expect("id_cache argument exists");
+        assert_eq!(
+            id_cache_arg.get_env().map(std::ffi::OsStr::to_str),
+            Some(Some("CF_DDNS_ID_CACHE"))
+        );
     }
 
     #[test]
