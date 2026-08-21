@@ -38,7 +38,7 @@ libc = "0.2.186"
 [target.'cfg(target_os = "linux")'.dependencies]
 netlink-packet-core = "0.8"
 netlink-packet-route = "0.32"
-netlink-sys = "0.8"
+netlink-sys = "0.9"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 plist = { version = "1.10.0", features = ["serde"] }
