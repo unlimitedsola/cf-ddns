@@ -110,8 +110,8 @@ impl InterfaceLookup {
 }
 
 impl LookupSpec for InterfaceLookup {
-    async fn lookup_v4(&self) -> Result<Ipv4Addr> {
-        self.lookup_ip(
+    fn lookup_v4(&self) -> impl Future<Output = Result<Ipv4Addr>> {
+        std::future::ready(self.lookup_ip(
             IpFamily::V4,
             |ip| match ip {
                 IpAddr::V4(addr) => Some(addr),
@@ -123,11 +123,11 @@ impl LookupSpec for InterfaceLookup {
                 }
                 self.matchers.v4.iter().all(|m| m.matches(addr))
             },
-        )
+        ))
     }
 
-    async fn lookup_v6(&self) -> Result<Ipv6Addr> {
-        self.lookup_ip(
+    fn lookup_v6(&self) -> impl Future<Output = Result<Ipv6Addr>> {
+        std::future::ready(self.lookup_ip(
             IpFamily::V6,
             |ip| match ip {
                 IpAddr::V4(_) => None,
@@ -139,7 +139,7 @@ impl LookupSpec for InterfaceLookup {
                 }
                 self.matchers.v6.iter().all(|m| m.matches(&addr))
             },
-        )
+        ))
     }
 }
 
