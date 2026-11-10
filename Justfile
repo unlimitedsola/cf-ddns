@@ -17,6 +17,17 @@ fmt:
 clippy:
 	cargo clippy --all-targets --all-features -- -D warnings
 
+# Run Clippy for macOS target
+clippy-mac:
+	cargo clippy --target x86_64-apple-darwin --all-targets --all-features -- -D warnings
+
+# Run Clippy for Windows target
+clippy-win:
+	cargo clippy --target x86_64-pc-windows-gnu --all-targets --all-features -- -D warnings
+
+# Run Clippy across all platforms (Linux, macOS, Windows)
+clippy-all: clippy clippy-mac clippy-win
+
 # Run all native test configurations
 test-all: test test-no-features test-all-features
 
