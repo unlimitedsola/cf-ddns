@@ -243,8 +243,7 @@ mod tests {
         let args: Vec<&str> = dict
             .get("ProgramArguments")
             .and_then(plist::Value::as_array)
-            .map(|arr| arr.iter().filter_map(plist::Value::as_string).collect())
-            .unwrap_or_default();
+            .map_or_default(|arr| arr.iter().filter_map(plist::Value::as_string).collect());
 
         assert_eq!(args, vec!["/usr/local/bin/cf-ddns", "service", "run"]);
         Ok(())
@@ -275,8 +274,7 @@ mod tests {
         let args: Vec<&str> = dict
             .get("ProgramArguments")
             .and_then(plist::Value::as_array)
-            .map(|arr| arr.iter().filter_map(plist::Value::as_string).collect())
-            .unwrap_or_default();
+            .map_or_default(|arr| arr.iter().filter_map(plist::Value::as_string).collect());
 
         assert_eq!(args, vec!["/usr/local/bin/cf-ddns", "service", "run"]);
         Ok(())
@@ -313,8 +311,7 @@ mod tests {
         let args: Vec<&str> = dict
             .get("ProgramArguments")
             .and_then(plist::Value::as_array)
-            .map(|arr| arr.iter().filter_map(plist::Value::as_string).collect())
-            .unwrap_or_default();
+            .map_or_default(|arr| arr.iter().filter_map(plist::Value::as_string).collect());
 
         assert_eq!(
             args,
